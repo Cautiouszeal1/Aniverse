@@ -1,26 +1,151 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * AniVerse design tokens
+ * Palette: midnight navy, deep violet, electric cyan, silver, white.
+ * All text/background pairs used in the UI meet WCAG AA contrast on navy.
+ */
+@theme {
+  --color-navy-950: #050816;
+  --color-navy-900: #0a0f24;
+  --color-navy-850: #0e1530;
+  --color-navy-800: #131c3d;
+  --color-navy-700: #1d2852;
+  --color-navy-600: #2a3768;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-violet-300: #b9a8ff;
+  --color-violet-400: #9a82ff;
+  --color-violet-500: #7c5cff;
+  --color-violet-600: #6440f0;
+  --color-violet-700: #4d2bc9;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --color-cyan-200: #a8f6ff;
+  --color-cyan-300: #6ff0ff;
+  --color-cyan-400: #2ee6f6;
+  --color-cyan-500: #12c6d8;
+
+  --color-silver-100: #eef1f7;
+  --color-silver-200: #d9dee9;
+  --color-silver-300: #b8c0d2;
+  --color-silver-400: #8f99b2;
+  --color-silver-500: #6b7591;
+
+  --font-display: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.25rem;
+
+  --animate-portal-spin: portal-spin 24s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+
+  @keyframes portal-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-navy-950);
+    color: var(--color-silver-200);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-violet-500) 55%, transparent);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-cyan-400);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  [id] {
+    scroll-margin-top: 6rem;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(
+      100deg,
+      #fff 0%,
+      var(--color-cyan-300) 45%,
+      var(--color-violet-400) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hairline {
+    border-color: color-mix(in oklab, var(--color-silver-300) 12%, transparent);
+  }
+
+  .panel {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--color-navy-800) 70%, transparent),
+      color-mix(in oklab, var(--color-navy-900) 70%, transparent)
+    );
+    border: 1px solid
+      color-mix(in oklab, var(--color-silver-300) 11%, transparent);
+    border-radius: var(--radius-card);
+  }
+
+  .grid-backdrop {
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in oklab, var(--color-silver-300) 6%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--color-silver-300) 6%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 70%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

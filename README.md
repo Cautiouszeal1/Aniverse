@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AniVerse — Ani Studio
 
-## Getting Started
+> Create Worlds. Bring Stories to Life.
 
-First, run the development server:
+AniVerse web platform. This repository currently contains **Milestone 1 — Design and Foundation**: the design system, responsive public website and reusable UI components.
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # optional: set NEXT_PUBLIC_CONTACT_EMAIL
+npm run dev                  # http://localhost:3000
+npm run check                # lint + typecheck + production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires Node.js 20.9+ (tested on Node 22).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js 16 (App Router, Turbopack, Cache Components) + React 19 + TypeScript
+- Tailwind CSS v4 (design tokens in `src/app/globals.css`)
+- Sora (display) and Inter (body) fonts, self-hosted under SIL OFL in `src/app/fonts/`. There are no Google Fonts calls at build or runtime.
 
-## Learn More
+## Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    layout.tsx         Root layout: fonts, metadata, header/footer
+    page.tsx           Home page (composes sections)
+    terms/, privacy/   Pre-launch legal notices (honest, not placeholders)
+    not-found.tsx      404
+    globals.css        Design tokens + base styles + utilities
+    fonts/             Vendored variable fonts
+  components/
+    ui/                Design system: Button, ButtonLink, Badge, Card,
+                       Container, Section, SectionHeading, Logo
+    site/              SiteHeader, MobileNav, SiteFooter, LegalPage
+    home/              Hero and home-page sections
+  lib/
+    site.ts            Site facts and flags (single source of truth)
+    cn.ts              className helper
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Feature status
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Area | Status |
+|---|---|
+| Design tokens, typography, components | ✅ Working |
+| Responsive header + accessible mobile menu | ✅ Working (Escape closes it, focus returns to the toggle, closes on resize) |
+| Home page: hero, workflow, studio overview, gallery, ecosystem, pricing, FAQ, contact | ✅ Working |
+| Terms / Privacy pages | ✅ Pre-launch notices; full legal text needed before beta |
+| Contact | ⚙️ Shows the email when `NEXT_PUBLIC_CONTACT_EMAIL` is set; otherwise shows an honest notice |
+| Sign in / Sign up buttons | ⏸ Disabled with an explanation (`site.accountsOpen = false`); enabled in Milestone 2 |
+| Sample gallery | ⏸ Honest empty state until real original work exists |
+| Auth, dashboard, studio, AI, billing, wallet | ❌ Not started (Milestones 2–7) |
 
-## Deploy on Vercel
+## Honesty rules this code follows
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- No fake metrics, testimonials, partners, prices or user counts.
+- Every control either works or is disabled with a visible reason.
+- No tracking, cookies or analytics.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `docs/ARCHITECTURE.md` for decisions and the founder approvals still needed.
