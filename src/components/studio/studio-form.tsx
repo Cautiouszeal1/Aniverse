@@ -186,7 +186,7 @@ export function StudioForm({
               ? "Images are placeholders until AI is connected."
               : provider.serverMode
                 ? "All 4 options are painted at once."
-                : "Free no-account mode: images appear slowly, one at a time."}
+                : "AI images are temporarily unavailable."}
           </p>
           <SubmitButton pendingText="Generating…" className="sm:min-w-44">
             {job ? "Generate again" : "Generate"}
@@ -205,8 +205,8 @@ export function StudioForm({
                 {job.isDemo
                   ? "Demo placeholders — the real AI will draw your description here."
                   : job.images.some((im) => im.imageUrl)
-                    ? `Painting ${Math.min(activeIndex + 1, job.images.length)} of ${job.images.length}… Made with free AI (${job.model}). You can keep one as soon as it appears.`
-                    : `Made with free AI (${job.model}). Each image takes a few seconds; keep one as soon as it appears.`}
+                    ? `Painting ${Math.min(activeIndex + 1, job.images.length)} of ${job.images.length}… You can keep one as soon as it appears.`
+                    : "Painted by AniVerse AI. Each image takes a few seconds; keep one as soon as it appears."}
               </p>
             </div>
             {!characterId ? (

@@ -223,7 +223,7 @@ export function StudioOverview() {
             },
             {
               t: "Honest about AI",
-              b: "We show which model made each output and never claim generated work is automatically copyrighted or exclusive.",
+              b: "Everything is clearly AI-assisted, and we never claim generated work is automatically copyrighted or exclusive.",
             },
           ].map((p) => (
             <div
@@ -418,8 +418,8 @@ const faqs = [
     a: "Your projects belong to your account. Rights in AI-generated output depend on the model provider's terms and the law where you live, so we won't promise automatic copyright or exclusivity. We will publish clear terms before the beta.",
   },
   {
-    q: "Which AI models do you use?",
-    a: "We are evaluating licensed image and video providers for quality, cost and commercial-use terms. Ani Studio will show which model produced each output.",
+    q: "What powers Ani Studio?",
+    a: "Ani Studio runs on AniVerse AI, our creative engine built on carefully selected generative models. We choose models for quality, speed and commercial-use terms, and we keep improving them over time.",
   },
 ];
 

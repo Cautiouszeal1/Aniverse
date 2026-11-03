@@ -38,8 +38,7 @@ export function AuthCard({
 function NotConfigured() {
   return (
     <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
-      Accounts are not switched on for this deployment yet. The site owner
-      needs to connect Supabase (see <code className="text-amber-50">docs/SETUP.md</code>).
+      Accounts are temporarily unavailable. Please try again a little later.
     </div>
   );
 }

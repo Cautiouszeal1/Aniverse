@@ -83,7 +83,7 @@ export function AiImage({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
           {visibleStatus === "failed" ? (
             <>
-              <p className="text-xs text-silver-300">The free image service is busy.</p>
+              <p className="text-xs text-silver-300">AniVerse AI is busy right now.</p>
               <button
                 type="button"
                 onClick={() => {

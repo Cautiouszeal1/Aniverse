@@ -1,11 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import {
-  POLLINATIONS_MODEL,
-  buildFullPrompt,
-  imageParams,
-  pollinationsUrl,
-} from "@/lib/images/pollinations";
+import sharp from "sharp";
+import { buildFullPrompt, imageParams } from "@/lib/images/pollinations";
 import type { CharacterImageInput, ImageProvider } from "./types";
 
 const API_BASE = (process.env.POLLINATIONS_API_BASE_URL?.trim() || "https://gen.pollinations.ai").replace(/\/$/, "");
@@ -31,31 +27,28 @@ function seedFor(idempotencyKey: string, i: number) {
  * generation happens on the server and images are stored privately. Without
  * it, the browser loads the keyless endpoint (rate-limited fallback).
  */
+/** Internal, brand-neutral identifiers stored with jobs and versions. */
+export const AV_IMAGE_PROVIDER_ID = "aniverse-image";
+export const AV_IMAGE_MODEL = "av-image-1";
+/** Earlier rows may carry the old identifier. */
+export const LEGACY_PROVIDER_IDS = ["pollinations"];
+
 export const pollinationsImageProvider: ImageProvider = {
-  id: "pollinations",
-  model: POLLINATIONS_MODEL,
+  id: AV_IMAGE_PROVIDER_ID,
+  model: AV_IMAGE_MODEL,
   isDemo: false,
-  label: "Free AI (beta)",
+  label: "AniVerse AI",
   estimateCredits() {
     return 0;
   },
   async generate(input: CharacterImageInput, { idempotencyKey }) {
-    const serverMode = pollinationsServerMode();
-    const images = Array.from({ length: input.variations }, (_, i) => {
-      const seed = seedFor(idempotencyKey, i);
-      return serverMode
-        ? { seed: String(seed) }
-        : {
-            seed: String(seed),
-            imageUrl: pollinationsUrl({
-              prompt: input.prompt,
-              style: input.style,
-              mood: input.mood,
-              aspect: input.aspectRatio,
-              seed,
-            }),
-          };
-    });
+    if (!pollinationsServerMode()) {
+      throw new RenderError("AI images are temporarily unavailable", true);
+    }
+    // Images are painted later, one request per image, on the server.
+    const images = Array.from({ length: input.variations }, (_, i) => ({
+      seed: String(seedFor(idempotencyKey, i)),
+    }));
     return { images };
   },
 };
@@ -89,26 +82,38 @@ export async function renderPollinationsImage(input: {
       cache: "no-store",
     });
   } catch {
-    throw new RenderError("The image service didn't respond in time", true);
+    throw new RenderError("AniVerse AI took too long", true);
   }
 
   if (res.status === 401 || res.status === 403) {
-    throw new RenderError("The AI image key was rejected", false);
+    console.error("[ai-image] provider rejected the API key");
+    throw new RenderError("AniVerse AI is temporarily unavailable", false);
   }
   if (res.status === 429 || res.status >= 500) {
-    throw new RenderError("The image service is busy", true);
+    throw new RenderError("AniVerse AI is busy", true);
   }
   if (!res.ok) {
-    throw new RenderError("The image service couldn't make this image", false);
+    throw new RenderError("AniVerse AI couldn't paint this one. Try a different description.", false);
   }
 
   const contentType = (res.headers.get("content-type") ?? "").split(";")[0].trim();
   if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
-    throw new RenderError("The image service returned something that isn't an image", true);
+    throw new RenderError("AniVerse AI returned an unexpected result", true);
   }
-  const bytes = await res.arrayBuffer();
-  if (bytes.byteLength < 1000 || bytes.byteLength > MAX_BYTES) {
-    throw new RenderError("The image service returned an unexpected file", true);
+  const raw = await res.arrayBuffer();
+  if (raw.byteLength < 1000 || raw.byteLength > MAX_BYTES) {
+    throw new RenderError("AniVerse AI returned an unexpected result", true);
   }
-  return { bytes, contentType };
+  // Re-encode: strips all embedded metadata (generator tags, EXIF, etc.)
+  // and stores a consistent JPEG.
+  let out: Buffer;
+  try {
+    out = await sharp(Buffer.from(raw)).rotate().jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+  } catch {
+    throw new RenderError("AniVerse AI returned an unexpected result", true);
+  }
+  return {
+    bytes: out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer,
+    contentType: "image/jpeg",
+  };
 }

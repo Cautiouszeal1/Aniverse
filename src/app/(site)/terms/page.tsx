@@ -7,10 +7,9 @@ export default function TermsPage() {
   return (
     <LegalPage title="Beta Terms of Use">
       <p>
-        AniVerse is in a free closed beta. These short beta terms apply while
-        it is free. Full Terms of Service, an Acceptable Use Policy and a
-        copyright complaint process will be published here before any paid
-        features or the public launch.
+        AniVerse is in a closed beta. These short beta terms apply during the
+        beta. Full Terms of Service, an Acceptable Use Policy and a copyright
+        complaint process will be published here before the public launch.
       </p>
 
       <h2>Your account</h2>
@@ -26,20 +25,20 @@ export default function TermsPage() {
         <li>We may remove content or suspend accounts that break these rules.</li>
       </ul>
 
-      <h2>AI images during the beta</h2>
+      <h2>AI-generated content</h2>
       <p>
-        Beta character images are created with a free third-party service
-        (Pollinations.ai, FLUX model). Images may occasionally carry a small
-        watermark, the service may be slow or unavailable, and AI-generated
-        images are not automatically protected by copyright or exclusive to
-        you. Similar images may exist elsewhere.
+        Images and animations are created by AniVerse AI. Results can be
+        unpredictable, generation may sometimes be slow or unavailable, and
+        AI-generated content is not automatically protected by copyright or
+        exclusive to you. Similar content may exist elsewhere.
       </p>
 
       <h2>Credits and payments</h2>
-      <p>
-        Generations are free during the beta. Paid credit packs are not yet
-        available; we will publish prices and payment terms before they are.
-      </p>
+      <ul>
+        <li>Some features use credits. The credit cost is shown before you generate.</li>
+        <li>Credits are only deducted when a generation succeeds. If it fails, you are not charged.</li>
+        <li>Prices, pack contents and refund terms will be shown before you buy.</li>
+      </ul>
     </LegalPage>
   );
 }

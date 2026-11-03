@@ -1,6 +1,6 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
-import { IMAGE_BUCKET, isStoragePath } from "@/lib/images/pollinations";
+import { IMAGE_BUCKET, isStoragePath } from "@/lib/images/paths";
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { isAllowedImageUrl, isStoragePath } from "@/lib/images/pollinations";
+import { isStoragePath } from "@/lib/images/paths";
 import { AiImage } from "./ai-image";
 import { DemoArt } from "./demo-art";
 
@@ -30,7 +30,9 @@ export function CharacterVisual({
   if (imageUrl) {
     return <AiImage url={imageUrl} alt={name} aspect={aspect} className={className} />;
   }
-  if (isStoragePath(imagePath)) {
+  // Saved AI image that couldn't be signed, or an image from an early test
+  // version that is no longer supported.
+  if (isStoragePath(imagePath) || (imagePath && /^https?:\/\//.test(imagePath))) {
     return (
       <div className={className}>
         <div className="flex aspect-square items-center justify-center bg-navy-900 p-4 text-center text-xs text-silver-400">
@@ -38,9 +40,6 @@ export function CharacterVisual({
         </div>
       </div>
     );
-  }
-  if (isAllowedImageUrl(imagePath)) {
-    return <AiImage url={imagePath} alt={name} aspect={aspect} className={className} />;
   }
   return <DemoArt seed={seed} style={style} mood={mood} aspect={aspect} className={className} label={showBadge} />;
 }

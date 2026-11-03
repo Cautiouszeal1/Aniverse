@@ -16,8 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="max-w-md">
           <h1 className="text-2xl font-semibold">Dashboard unavailable</h1>
           <p className="mt-3 text-silver-400">
-            Accounts aren&apos;t switched on for this deployment yet. Connect
-            Supabase as described in docs/SETUP.md.
+            Accounts are temporarily unavailable. Please try again a little later.
           </p>
           <Link href="/" className="mt-6 inline-block text-cyan-300">
             Back to home

@@ -14,7 +14,12 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { str } from "@/lib/validation";
 import { getImageProvider } from "@/server/providers/image";
-import { RenderError, renderPollinationsImage } from "@/server/providers/image/pollinations";
+import {
+  AV_IMAGE_PROVIDER_ID,
+  LEGACY_PROVIDER_IDS,
+  RenderError,
+  renderPollinationsImage,
+} from "@/server/providers/image/pollinations";
 import { jobImagePath, signedUrlFor, uploadImage } from "@/server/images/storage";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
@@ -78,7 +83,7 @@ export async function generateCharacter(_: GenerateState, form: FormData): Promi
       job: {
         id: existing.id,
         isDemo: existing.is_demo,
-        label: existing.is_demo ? "Demo" : "Free AI (beta)",
+        label: existing.is_demo ? "Demo" : "AniVerse AI",
         provider: existing.provider,
         model: existing.model,
         credits: existing.estimated_credits,
@@ -109,8 +114,9 @@ export async function generateCharacter(_: GenerateState, form: FormData): Promi
   let result;
   try {
     result = await provider.generate(input, { idempotencyKey: requestKey });
-  } catch {
-    return { error: "Generation failed. You were not charged. Please try again.", values };
+  } catch (e) {
+    const msg = e instanceof RenderError ? e.message : "Generation failed";
+    return { error: `${msg}. You were not charged. Please try again in a moment.`, values };
   }
 
   const now = new Date().toISOString();
@@ -304,7 +310,8 @@ export async function renderJobImage(jobId: string, seed: string): Promise<Rende
     .select("id, provider, is_demo, status, input, output")
     .eq("id", jobId)
     .maybeSingle();
-  if (!job || job.status !== "completed" || job.is_demo || job.provider !== "pollinations") {
+  const knownProvider = job && (job.provider === AV_IMAGE_PROVIDER_ID || LEGACY_PROVIDER_IDS.includes(job.provider));
+  if (!job || job.status !== "completed" || job.is_demo || !knownProvider) {
     return { error: "This generation could not be found.", retryable: false };
   }
   const known = ((job.output?.images ?? []) as { seed: string }[]).some((i) => i.seed === seed);

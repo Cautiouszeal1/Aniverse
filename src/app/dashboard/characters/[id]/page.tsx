@@ -78,7 +78,7 @@ async function CharacterContent({ params }: { params: Promise<{ id: string }> })
               <div><dt className="text-silver-500">Shape</dt><dd className="text-silver-100">{labelFor(ASPECTS, current.aspect_ratio)}</dd></div>
               <div>
                 <dt className="text-silver-500">Made with</dt>
-                <dd className="text-silver-100">{current.is_demo ? "Demo placeholder" : `Free AI · ${current.model}`}</dd>
+                <dd className="text-silver-100">{current.is_demo ? "Demo placeholder" : "AniVerse AI"}</dd>
               </div>
             </dl>
           ) : null}

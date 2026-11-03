@@ -1,3 +1,4 @@
+import "server-only";
 /**
  * Pollinations.ai helpers shared by server and browser.
  *
@@ -7,10 +8,6 @@
  * - Keyless fallback: the browser loads image.pollinations.ai directly
  *   (heavily rate-limited and watermarked); used only when no key is set.
  */
-export const POLLINATIONS_BASE =
-  process.env.NEXT_PUBLIC_POLLINATIONS_BASE_URL?.replace(/\/$/, "") ||
-  "https://image.pollinations.ai";
-
 export const POLLINATIONS_MODEL = "flux";
 
 const SIZES: Record<string, [number, number]> = {
@@ -64,24 +61,4 @@ export function imageParams(aspect: string, seed: number) {
   });
 }
 
-/** Keyless browser URL (fallback mode only). */
-export function pollinationsUrl(opts: {
-  prompt: string;
-  style: string;
-  mood: string;
-  aspect: string;
-  seed: number;
-}) {
-  return `${POLLINATIONS_BASE}/prompt/${encodeURIComponent(buildFullPrompt(opts))}?${imageParams(opts.aspect, opts.seed)}`;
-}
 
-/** Only render keyless images from the provider we actually use. */
-export function isAllowedImageUrl(url: string | null | undefined): url is string {
-  return typeof url === "string" && url.startsWith(`${POLLINATIONS_BASE}/prompt/`);
-}
-
-/** Storage paths look like "<user id>/<job id>/<seed>.jpg". */
-export const IMAGE_BUCKET = "character-images";
-export function isStoragePath(p: string | null | undefined): p is string {
-  return typeof p === "string" && /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/\d+\.(jpg|png|webp)$/i.test(p);
-}
