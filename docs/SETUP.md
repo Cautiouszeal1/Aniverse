@@ -34,7 +34,7 @@ Keep the rest of each template as it is.
 
 Copy these two values:
 - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-- **anon / publishable key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **publishable key** (`sb_publishable_…`) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (older projects: anon key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 
 Both are safe to put in the website. **Never** share or paste the `service_role` key anywhere public.
 
