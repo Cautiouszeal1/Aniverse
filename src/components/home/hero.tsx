@@ -130,7 +130,10 @@ export function Hero() {
             </ButtonLink>
           </div>
           <p className="mt-5 text-sm text-silver-400">
-            No wallet or crypto needed. Sign-up opens with the closed beta.
+            No wallet or crypto needed.{" "}
+            {site.accountsOpen
+              ? "Closed beta is open — create a free account."
+              : "Sign-up opens with the closed beta."}
           </p>
         </div>
 

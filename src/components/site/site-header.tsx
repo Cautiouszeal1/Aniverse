@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/primitives";
 import { navLinks, site } from "@/lib/site";
 import { MobileNav } from "./mobile-nav";
@@ -38,10 +38,21 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="ghost" disabledReason={closedReason}>
-            Sign in
-          </Button>
-          <Button disabledReason={closedReason}>Sign up</Button>
+          {site.accountsOpen ? (
+            <>
+              <ButtonLink href="/login" variant="ghost">
+                Sign in
+              </ButtonLink>
+              <ButtonLink href="/signup">Sign up</ButtonLink>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" disabledReason={closedReason}>
+                Sign in
+              </Button>
+              <Button disabledReason={closedReason}>Sign up</Button>
+            </>
+          )}
         </div>
 
         <MobileNav />

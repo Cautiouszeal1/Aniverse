@@ -1,3 +1,5 @@
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+
 /**
  * Single source of truth for site-wide facts.
  * Keep every statement here true: no invented users, partners or metrics.
@@ -11,8 +13,8 @@ export const site = {
   status: "In development — closed beta planned",
   /** Set NEXT_PUBLIC_CONTACT_EMAIL to enable the contact link. */
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || null,
-  /** Sign-up and sign-in arrive in Milestone 2 (authentication). */
-  accountsOpen: false,
+  /** True once Supabase is configured for this deployment. */
+  accountsOpen: isSupabaseConfigured,
 } as const;
 
 export const navLinks = [

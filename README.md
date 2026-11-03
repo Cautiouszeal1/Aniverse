@@ -2,7 +2,9 @@
 
 > Create Worlds. Bring Stories to Life.
 
-AniVerse web platform. This repository currently contains **Milestone 1 — Design and Foundation**: the design system, responsive public website and reusable UI components.
+AniVerse web platform. Done so far: **Milestone 1** (design system and public website) and **Milestone 2** (accounts, protected dashboard, projects, and the credit ledger the business model relies on).
+
+To switch accounts on, follow **docs/SETUP.md** (Supabase free plan, about 15 minutes).
 
 ## Quick start
 
@@ -11,6 +13,7 @@ npm install
 cp .env.example .env.local   # optional: set NEXT_PUBLIC_CONTACT_EMAIL
 npm run dev                  # http://localhost:3000
 npm run check                # lint + typecheck + production build
+tests/db/run.sh              # database tests against a local Postgres
 ```
 
 Requires Node.js 20.9+ (tested on Node 22).
@@ -51,9 +54,15 @@ src/
 | Home page: hero, workflow, studio overview, gallery, ecosystem, pricing, FAQ, contact | ✅ Working |
 | Terms / Privacy pages | ✅ Pre-launch notices; full legal text needed before beta |
 | Contact | ⚙️ Shows the email when `NEXT_PUBLIC_CONTACT_EMAIL` is set; otherwise shows an honest notice |
-| Sign in / Sign up buttons | ⏸ Disabled with an explanation (`site.accountsOpen = false`); enabled in Milestone 2 |
-| Sample gallery | ⏸ Honest empty state until real original work exists |
-| Auth, dashboard, studio, AI, billing, wallet | ❌ Not started (Milestones 2–7) |
+| Sign up, email confirmation, sign in/out, forgot/reset password | ✅ Built; needs Supabase connected to go live. Not yet tested against a live Supabase project |
+| Route protection (proxy + server checks + row-level security) | ✅ DB tests pass; redirects tested |
+| Onboarding (display name, creator type, terms version recorded) | ✅ |
+| Dashboard: overview, projects (create/rename/archive/delete), credits page, settings | ✅ |
+| Credit ledger: append-only, idempotent purchases, no double charge, no overspend | ✅ DB tests pass |
+| Credit pack: Starter $10 = 500 credits ($5 AI usage, $5 AniVerse) | ✅ Data in place; **Buy** is disabled until payments (Milestone 6) |
+| Character Studio, Storyboards, Animations, Media Library | ⏸ Shown as "Soon" in the sidebar (Milestones 3–5) |
+| Account deletion request | ⏸ Disabled with explanation (Milestone 6) |
+| Payments (Paystack), AI providers, admin console | ❌ Not started |
 
 ## Honesty rules this code follows
 

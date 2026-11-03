@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { navLinks, site } from "@/lib/site";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 
 /** Accessible disclosure menu for small screens. Closes on Escape, link click or resize. */
 export function MobileNav() {
@@ -83,22 +83,27 @@ export function MobileNav() {
                 </ul>
               </nav>
               <div className="mt-6 border-t hairline pt-6">
-                <Button
-                  size="lg"
-                  className="w-full"
-                  disabledReason={
-                    site.accountsOpen
-                      ? undefined
-                      : "Accounts open with the closed beta"
-                  }
-                >
+            {site.accountsOpen ? (
+              <div className="flex flex-col gap-3">
+                <ButtonLink href="/signup" size="lg" className="w-full" onClick={() => setOpen(false)}>
+                  Sign up
+                </ButtonLink>
+                <ButtonLink href="/login" size="lg" variant="secondary" className="w-full" onClick={() => setOpen(false)}>
+                  Sign in
+                </ButtonLink>
+              </div>
+            ) : (
+              <>
+                <Button size="lg" className="w-full" disabledReason="Accounts open with the closed beta">
                   Sign up
                 </Button>
                 <p className="mt-3 text-center text-sm text-silver-400">
                   Accounts open with the closed beta.
                 </p>
-              </div>
-            </div>,
+              </>
+            )}
+          </div>
+        </div>,
             document.body,
           )
         : null}

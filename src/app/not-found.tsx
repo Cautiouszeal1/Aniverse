@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/primitives";
 
 export default function NotFound() {
   return (
+    <main id="main" className="flex-1">
     <Container className="flex flex-col items-center py-32 text-center">
       <p className="font-display text-sm uppercase tracking-[0.22em] text-cyan-300">
         404
@@ -15,5 +16,6 @@ export default function NotFound() {
         Back to home
       </ButtonLink>
     </Container>
+    </main>
   );
 }
