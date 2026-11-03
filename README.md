@@ -14,6 +14,7 @@ cp .env.example .env.local   # optional: set NEXT_PUBLIC_CONTACT_EMAIL
 npm run dev                  # http://localhost:3000
 npm run check                # lint + typecheck + production build
 tests/db/run.sh              # database tests against a local Postgres
+npm run test:unit            # unit tests (payment log parsing)
 npm run check:configured     # build as if Supabase is connected (catches dashboard-only build errors)
 ```
 
@@ -65,7 +66,8 @@ src/
 | Storyboard editor: scenes with title, action, dialogue, shot, camera notes, duration and characters; add, edit, duplicate, delete, reorder; saved versions with restore | ✅ |
 | Animations, Media Library | ⏸ Shown as "Soon" (Milestone 5) |
 | Account deletion request | ⏸ Disabled with explanation (Milestone 6) |
-| Payments (Paystack), AI providers, admin console | ❌ Not started |
+| USDC on Base payments: unique-amount orders, wallet button + QR + manual, automatic on-chain verification every minute (works with the user offline), tx-hash fallback, unmatched-payment admin resolution | ✅ (see docs/SETUP.md) |
+| Card payments, animation | ❌ Not started |
 
 ## Honesty rules this code follows
 

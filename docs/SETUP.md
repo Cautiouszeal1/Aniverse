@@ -58,3 +58,39 @@ Without a key, images use Pollinations' no-account mode (1 image per 45 s, water
 4. Redeploy. Character Studio will say "All 4 options are painted at once".
 
 Never paste the secret key in chat, code or GitHub.
+
+## USDC payments on Base (automatic)
+Payments go straight to the receiving wallet set in `payment_settings`
+(currently `0x14A15A119f2bec1f09cC6261050dEd87Db3DDD38`). Each order has a unique
+amount, and a background watcher credits users automatically every minute —
+even if their phone is off.
+
+1. **Database:** run `supabase/migrations/20261103000600_crypto_payments.sql` in the SQL Editor.
+2. **Vercel secrets** (Settings → Environments → Production → type **Secret**):
+   - `SUPABASE_SERVICE_ROLE_KEY` — Supabase → Project Settings → API Keys → **secret / service_role** key.
+   - `CRON_SECRET` — a long random string (the watcher password).
+   Redeploy afterwards.
+3. **Make yourself admin** (SQL Editor; use your sign-in email):
+   ```sql
+   insert into public.app_admins (user_id)
+   select id from auth.users where email = 'YOUR_EMAIL' on conflict do nothing;
+   ```
+4. **Run the watcher every minute** (SQL Editor; replace YOUR_CRON_SECRET):
+   ```sql
+   create extension if not exists pg_cron with schema pg_catalog;
+   create extension if not exists pg_net with schema extensions;
+   select cron.schedule(
+     'aniverse-payment-watcher',
+     '* * * * *',
+     $$ select net.http_post(
+          url := 'https://aniverse-alpha-lac.vercel.app/api/crypto/sweep',
+          headers := jsonb_build_object('Authorization', 'Bearer YOUR_CRON_SECRET'),
+          timeout_milliseconds := 55000
+        ) $$
+   );
+   ```
+   Vercel also runs it once a day as a backup (`vercel.json`).
+5. **Check:** `/api/health` should show `"cryptoPayments":true,"paymentWatcher":true`.
+6. **Live test:** buy the Starter pack and pay from another wallet you own.
+
+To change wallet or network later, update the single row in `payment_settings` — no code changes.

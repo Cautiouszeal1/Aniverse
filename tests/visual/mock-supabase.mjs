@@ -26,7 +26,48 @@ const db = {
   storyboards: [],
   storyboard_scenes: [],
   storyboard_revisions: [],
+  payment_settings: [{ id: true, chain: "base", chain_id: 8453, token_symbol: "USDC", token_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", token_decimals: 6, receive_address: "0x14a15a119f2bec1f09cc6261050ded87db3ddd38", order_minutes: 60, confirmations: 2, enabled: true }],
+  crypto_orders: [],
+  crypto_payments: [],
+  crypto_scan_state: [],
+  app_admins: [{ user_id: USER_ID }],
 };
+
+// ---- Stand-in Base chain (test only) ----
+const chain = { block: 1000, logs: [], blockTimes: new Map() };
+setInterval(() => { chain.block++; chain.blockTimes.set(chain.block, Math.floor(Date.now() / 1000)); }, 1000);
+const hex = (n) => "0x" + BigInt(n).toString(16);
+const TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const topicAddr = (a) => "0x" + a.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+function addTransfer({ to, units, token = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", from = "0x" + "7".repeat(40) }) {
+  const txHash = "0x" + randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+  chain.block++; chain.blockTimes.set(chain.block, Math.floor(Date.now() / 1000));
+  chain.logs.push({ address: token, topics: [TRANSFER, topicAddr(from), topicAddr(to)], data: "0x" + BigInt(units).toString(16).padStart(64, "0"), blockNumber: hex(chain.block), transactionHash: txHash, logIndex: "0x0", removed: false });
+  return txHash;
+}
+function rpcHandle(m, params) {
+  if (m === "eth_blockNumber") return hex(chain.block);
+  if (m === "eth_getLogs") {
+    const f = params[0]; const lo = Number(BigInt(f.fromBlock)); const hi = Number(BigInt(f.toBlock));
+    return chain.logs.filter((l) => { const b = Number(BigInt(l.blockNumber)); return b >= lo && b <= hi && l.address === f.address.toLowerCase() && l.topics[2] === f.topics[2]; });
+  }
+  if (m === "eth_getBlockByNumber") { const n = Number(BigInt(params[0])); return { number: params[0], timestamp: hex(chain.blockTimes.get(n) ?? Math.floor(Date.now() / 1000)) }; }
+  if (m === "eth_getTransactionReceipt") { const ls = chain.logs.filter((l) => l.transactionHash === params[0]); return ls.length ? { status: "0x1", blockNumber: ls[0].blockNumber, logs: ls } : null; }
+  if (m === "eth_requestAccounts" || m === "eth_accounts") return ["0x" + "7".repeat(40)];
+  return null;
+}
+const now2 = () => new Date().toISOString();
+function confirmPayment(a) {
+  if (db.crypto_payments.some((x) => x.tx_hash === a.p_tx_hash && x.log_index === a.p_log_index)) return "duplicate";
+  const pay = { id: randomUUID(), chain: a.p_chain, tx_hash: a.p_tx_hash, log_index: a.p_log_index, from_address: a.p_from, units: String(a.p_units), status: "unmatched", created_at: now2(), order_id: null };
+  db.crypto_payments.push(pay);
+  const o = db.crypto_orders.filter((x) => String(x.amount_units) === String(a.p_units) && ["pending", "expired"].includes(x.status) && new Date(x.created_at).getTime() <= new Date(a.p_block_time).getTime() + 120000)[0];
+  if (!o) return "unmatched";
+  Object.assign(o, { status: "paid", tx_hash: a.p_tx_hash, from_address: a.p_from, paid_at: now2() });
+  pay.status = "credited"; pay.order_id = o.id;
+  db.credit_ledger.push({ id: db.credit_ledger.length + 1, user_id: o.owner_id, delta: o.credits, reason: "purchase", note: o.credits + " credits · USDC payment", created_at: now2() });
+  return "credited";
+}
 
 function applyFilters(rows, params) {
   let out = rows;
@@ -124,6 +165,38 @@ http.createServer(async (req, res) => {
   if (p === "/rest/v1/rpc/my_credit_balance")
     return send(200, db.credit_ledger.reduce((s, r) => s + r.delta, 0));
 
+  if (p === "/__chain/pay") { const q = Object.fromEntries(url.searchParams); return send(200, { tx: addTransfer({ to: q.to ?? "0x14a15a119f2bec1f09cc6261050ded87db3ddd38", units: q.units, token: q.token }) }); }
+  if (p.startsWith("/__chain/") && req.method === "OPTIONS") {
+    res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "POST, GET" });
+    return res.end();
+  }
+  if (p === "/__chain/rpc" || p === "/__chain/rpc/") {
+    res.setHeader("access-control-allow-origin", "*");
+    const b = JSON.parse(body || "{}");
+    if (b.method === "eth_sendTransaction") {
+      const tx = b.params[0]; const d = tx.data.slice(10);
+      const to = "0x" + d.slice(24, 64); const units = BigInt("0x" + d.slice(64, 128));
+      return send(200, { jsonrpc: "2.0", id: b.id, result: addTransfer({ to, units, token: tx.to.toLowerCase(), from: tx.from }) });
+    }
+    return send(200, { jsonrpc: "2.0", id: b.id, result: rpcHandle(b.method, b.params || []) });
+  }
+  if (p === "/rest/v1/rpc/create_crypto_order") {
+    const { p_pack_id } = JSON.parse(body || "{}"); const pack = db.credit_packs.find((x) => x.id === p_pack_id);
+    if (db.crypto_orders.filter((o) => o.status === "pending").length >= 3) return send(400, { message: "too_many_open_orders" });
+    const o = { id: randomUUID(), owner_id: USER_ID, pack_id: pack.id, credits: pack.credits, price_usd_cents: pack.price_usd_cents, chain: "base", chain_id: 8453, token_symbol: "USDC", token_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", token_decimals: 6, receive_address: "0x14a15a119f2bec1f09cc6261050ded87db3ddd38", amount_units: 10000000 + 1 + Math.floor(Math.random() * 9999), status: "pending", tx_hash: null, created_at: now2(), expires_at: new Date(Date.now() + 3600e3).toISOString() };
+    db.crypto_orders.push(o); return send(200, o);
+  }
+  if (p === "/rest/v1/rpc/confirm_crypto_payment") return send(200, confirmPayment(JSON.parse(body || "{}")));
+  if (p === "/rest/v1/rpc/expire_crypto_orders") return send(200, 0);
+  if (p === "/rest/v1/rpc/is_admin") return send(200, true);
+  if (p === "/rest/v1/rpc/cancel_crypto_order") { const { p_order_id } = JSON.parse(body || "{}"); const o = db.crypto_orders.find((x) => x.id === p_order_id); if (o && o.status === "pending") o.status = "cancelled"; return send(200, null); }
+  if (p === "/rest/v1/rpc/resolve_crypto_payment") {
+    const { p_payment_id, p_order_id } = JSON.parse(body || "{}");
+    const pay = db.crypto_payments.find((x) => x.id === p_payment_id); const o = db.crypto_orders.find((x) => x.id === p_order_id);
+    Object.assign(o, { status: "paid", tx_hash: pay.tx_hash, paid_at: now2() }); pay.status = "resolved"; pay.order_id = o.id;
+    db.credit_ledger.push({ id: db.credit_ledger.length + 1, user_id: o.owner_id, delta: o.credits, reason: "purchase", note: "resolved", created_at: now2() });
+    return send(200, null);
+  }
   if (p === "/rest/v1/rpc/reorder_scenes") {
     const { p_storyboard_id, p_scene_ids } = JSON.parse(body || "{}");
     const scenes = db.storyboard_scenes.filter((x) => x.storyboard_id === p_storyboard_id);
@@ -162,6 +235,10 @@ http.createServer(async (req, res) => {
   if (req.method === "POST") {
     const items = [].concat(JSON.parse(body || "[]"));
     const created = [];
+    if (prefer.includes("merge-duplicates") && table === "crypto_scan_state") {
+      for (const item of items) { const ex = db.crypto_scan_state.find((r) => r.chain === item.chain); if (ex) Object.assign(ex, item); else db.crypto_scan_state.push(item); }
+      return send(201, undefined);
+    }
     for (const item of items) {
       if (table === "generation_jobs" && db.generation_jobs.some((j) => j.idempotency_key === item.idempotency_key))
         return send(409, { code: "23505", message: "duplicate key" });

@@ -14,7 +14,8 @@ export async function GET() {
     ok: true,
     accounts: Boolean(url && publicKey),
     aiImages: aiKey.startsWith("sk_"),
-    payments: Boolean(process.env.PAYSTACK_SECRET_KEY?.trim()),
+    cryptoPayments: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+    paymentWatcher: Boolean(process.env.CRON_SECRET?.trim()),
     version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
   });
 }

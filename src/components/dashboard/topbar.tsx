@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { signOut } from "@/app/(auth)/actions";
 import { getCreditBalance, getCurrentUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { MobileSidebar } from "./sidebar";
 
 async function CreditChip() {
@@ -20,6 +21,8 @@ async function CreditChip() {
 
 async function UserMenu() {
   const user = await getCurrentUser();
+  const supabase = await createClient();
+  const { data: isAdmin } = await supabase.rpc("is_admin");
   const name = user.displayName || user.email;
   const initial = (name || "?").trim().charAt(0).toUpperCase();
   return (
@@ -38,6 +41,11 @@ async function UserMenu() {
         <Link href="/dashboard/settings" className="block rounded-xl px-3 py-2 text-sm text-silver-200 hover:bg-white/[0.05]">
           Settings
         </Link>
+        {isAdmin ? (
+          <Link href="/dashboard/admin/payments" className="block rounded-xl px-3 py-2 text-sm text-amber-200 hover:bg-white/[0.05]">
+            Admin · Payments
+          </Link>
+        ) : null}
         <form action={signOut}>
           <button type="submit" className="block w-full rounded-xl px-3 py-2 text-left text-sm text-silver-200 hover:bg-white/[0.05]">
             Sign out
