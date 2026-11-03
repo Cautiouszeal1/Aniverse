@@ -5,23 +5,43 @@ export const metadata: Metadata = { title: "Privacy" };
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy">
+    <LegalPage title="Beta Privacy Notice">
       <p>
-        This website currently has no sign-up, forms, analytics or tracking
-        cookies. Visiting it does not give us any personal data beyond the
-        standard request logs kept by our hosting provider.
+        AniVerse is in a free closed beta. This notice explains what we handle
+        during the beta. A full Privacy Policy will be published before the
+        public launch.
       </p>
-      <h2>Before the closed beta</h2>
+
+      <h2>What we store</h2>
+      <ul>
+        <li>Your email address and password (stored securely by our login provider; we never see your password).</li>
+        <li>Your optional display name and creator type, and when you accepted the beta terms.</li>
+        <li>Your projects, character descriptions and saved character versions.</li>
+      </ul>
       <p>
-        A full Privacy Policy will be published here before accounts open. It
-        will explain what we collect, why, how long we keep it, which
-        processors (such as AI model providers and hosting) receive it, and
-        how to export or delete your data.
+        This is stored with Supabase in the European Union (Frankfurt). The
+        website is hosted by Vercel.
       </p>
-      <h2>Contact</h2>
+
+      <h2>AI image generation</h2>
       <p>
-        Privacy questions can be sent through the contact details on the home
-        page once they are published.
+        When you generate a character, your description and chosen style are
+        sent to Pollinations.ai, a free third-party image service, which
+        returns the image directly to your browser. Don&apos;t include personal
+        or confidential information in descriptions.
+      </p>
+
+      <h2>Cookies and tracking</h2>
+      <p>
+        We use only the cookies needed to keep you signed in. There are no
+        analytics, advertising or tracking cookies.
+      </p>
+
+      <h2>Your choices</h2>
+      <p>
+        You can edit or delete your projects and characters at any time.
+        Account deletion requests will be available from Settings; until then,
+        contact us using the details on the home page.
       </p>
     </LegalPage>
   );

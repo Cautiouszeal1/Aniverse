@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { PageHeader, PanelSkeleton } from "@/components/dashboard/page-header";
 import { StudioForm } from "@/components/studio/studio-form";
 import { getProject } from "@/lib/data";
+import { getImageProvider } from "@/server/providers/image";
 
 export const metadata: Metadata = { title: "Character Studio" };
 
@@ -31,7 +32,11 @@ async function Studio({ params }: { params: Promise<{ id: string }> }) {
           <PageHeader title="Character Studio" description="Describe a character, choose a look, and keep the one you love." />
         </div>
       </div>
-      <StudioForm projectId={id} initialKey={randomUUID()} />
+      <StudioForm
+        projectId={id}
+        initialKey={randomUUID()}
+        provider={{ isDemo: getImageProvider().isDemo, label: getImageProvider().label }}
+      />
     </div>
   );
 }

@@ -59,7 +59,7 @@ export function SiteFooter() {
       <div className="border-t hairline">
         <Container className="flex flex-col gap-2 py-6 text-xs text-silver-500 sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 AniVerse. Company incorporation pending.</p>
-          <p>This website sets no tracking cookies and collects no personal data.</p>
+          <p>No tracking or advertising cookies.</p>
         </Container>
       </div>
     </footer>

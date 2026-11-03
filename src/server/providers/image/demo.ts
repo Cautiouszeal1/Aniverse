@@ -12,6 +12,7 @@ export const demoImageProvider: ImageProvider = {
   id: "demo",
   model: "aniverse-demo-v1",
   isDemo: true,
+  label: "Demo",
   estimateCredits() {
     return 0;
   },

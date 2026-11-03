@@ -25,11 +25,12 @@ export type GenerateState = {
   job?: {
     id: string;
     isDemo: boolean;
+    label: string;
     provider: string;
     model: string;
     credits: number;
     input: { prompt: string; style: StyleId; mood: MoodId; aspect: AspectId };
-    seeds: string[];
+    images: { seed: string; imageUrl?: string }[];
   };
 };
 
@@ -75,11 +76,12 @@ export async function generateCharacter(_: GenerateState, form: FormData): Promi
       job: {
         id: existing.id,
         isDemo: existing.is_demo,
+        label: existing.is_demo ? "Demo" : "Free AI (beta)",
         provider: existing.provider,
         model: existing.model,
         credits: existing.estimated_credits,
         input: { prompt, style, mood, aspect },
-        seeds: ((existing.output?.images ?? []) as { seed: string }[]).map((i) => i.seed),
+        images: (existing.output?.images ?? []) as { seed: string; imageUrl?: string }[],
       },
     };
   }
@@ -97,7 +99,7 @@ export async function generateCharacter(_: GenerateState, form: FormData): Promi
   const input = { prompt, style, mood, aspectRatio: aspect, variations: VARIATIONS_PER_GENERATION };
   const credits = provider.estimateCredits(input);
 
-  if (!provider.isDemo) {
+  if (credits > 0) {
     // Paid generation needs the server-side credit flow (Milestone 6).
     return { error: "Paid AI generation isn't switched on yet.", values };
   }
@@ -119,7 +121,7 @@ export async function generateCharacter(_: GenerateState, form: FormData): Promi
       status: "completed",
       provider: provider.id,
       model: provider.model,
-      is_demo: true,
+      is_demo: provider.isDemo,
       input,
       output: { images: result.images },
       estimated_credits: credits,
@@ -138,12 +140,13 @@ export async function generateCharacter(_: GenerateState, form: FormData): Promi
     values,
     job: {
       id: job.id,
-      isDemo: true,
+      isDemo: provider.isDemo,
+      label: provider.label,
       provider: provider.id,
       model: provider.model,
       credits,
       input: { prompt, style, mood, aspect },
-      seeds: result.images.map((i) => i.seed),
+      images: result.images,
     },
   };
 }
@@ -161,9 +164,11 @@ async function loadJobSeed(
     .eq("id", jobId)
     .maybeSingle();
   if (!job || job.status !== "completed") return null;
-  const seeds = ((job.output?.images ?? []) as { seed: string }[]).map((i) => i.seed);
-  if (!seeds.includes(seed)) return null;
-  return job;
+  const image = ((job.output?.images ?? []) as { seed: string; imageUrl?: string }[]).find(
+    (i) => i.seed === seed,
+  );
+  if (!image) return null;
+  return { ...job, imageUrl: image.imageUrl ?? null };
 }
 
 export async function saveNewCharacter(form: FormData): Promise<void> {
@@ -194,6 +199,7 @@ export async function saveNewCharacter(form: FormData): Promise<void> {
     model: job.model,
     is_demo: job.is_demo,
     seed,
+    image_path: job.imageUrl,
     job_id: job.id,
   });
 
@@ -230,6 +236,7 @@ export async function addCharacterVersion(form: FormData): Promise<void> {
     model: job.model,
     is_demo: job.is_demo,
     seed,
+    image_path: job.imageUrl,
     job_id: job.id,
   });
   if (error) return;

@@ -11,10 +11,13 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 -- demo job in own project: ok
 insert into generation_jobs (id, owner_id, project_id, kind, status, provider, model, is_demo, input, idempotency_key)
 values ('20000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000c1','10000000-0000-0000-0000-000000000001','character_image','completed','test','demo-v1',true,'{}','k1');
+-- free (0-credit) real-provider job: ok
+insert into generation_jobs (owner_id, project_id, kind, status, provider, model, is_demo, input, idempotency_key)
+values ('00000000-0000-0000-0000-0000000000c1','10000000-0000-0000-0000-000000000001','character_image','completed','pollinations','flux',false,'{}','k-free');
 -- paid job written by user: blocked
 do $$ begin
-  insert into generation_jobs (owner_id, project_id, kind, provider, model, is_demo, input, idempotency_key)
-  values ('00000000-0000-0000-0000-0000000000c1','10000000-0000-0000-0000-000000000001','character_image','fal','x',false,'{}','k2');
+  insert into generation_jobs (owner_id, project_id, kind, provider, model, is_demo, input, estimated_credits, idempotency_key)
+  values ('00000000-0000-0000-0000-0000000000c1','10000000-0000-0000-0000-000000000001','character_image','fal','x',false,'{}',35,'k2');
   raise exception 'paid job should be blocked';
 exception when insufficient_privilege then null; end $$;
 -- job in someone else's project: blocked

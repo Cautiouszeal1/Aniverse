@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   addCharacterVersion,
   generateCharacter,
@@ -16,6 +16,7 @@ import {
   VARIATIONS_PER_GENERATION,
 } from "@/lib/characters/options";
 import { cn } from "@/lib/cn";
+import { AiImage } from "./ai-image";
 import { DemoArt } from "./demo-art";
 
 function newKey() {
@@ -73,6 +74,7 @@ export function StudioForm({
   defaults,
   suggestedName,
   initialKey,
+  provider,
 }: {
   projectId: string;
   /** When set, results are saved as new versions of this character. */
@@ -81,6 +83,8 @@ export function StudioForm({
   suggestedName?: string;
   /** Server-generated so the first render matches between server and browser. */
   initialKey: string;
+  /** Which image engine is active (decided on the server). */
+  provider: { isDemo: boolean; label: string };
 }) {
   const [requestKey, setRequestKey] = useState(initialKey);
   const [state, action] = useActionState(async (prev: GenerateState, form: FormData) => {
@@ -96,6 +100,16 @@ export function StudioForm({
   const [name, setName] = useState(suggestedName ?? "");
 
   const job = state.job;
+  // Free tier: load AI images one after another to respect its rate limit.
+  const [loadedUpTo, setLoadedUpTo] = useState<{ jobId: string; n: number }>({ jobId: "", n: 0 });
+  const activeIndex = job && loadedUpTo.jobId === job.id ? loadedUpTo.n : 0;
+  const jobId = job?.id;
+  useEffect(() => {
+    if (!jobId) return;
+    document.getElementById(`results-${jobId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [jobId]);
+  const advance = (jobId: string, i: number) =>
+    setLoadedUpTo((cur) => (cur.jobId === jobId && cur.n > i ? cur : { jobId, n: i + 1 }));
 
   return (
     <div className="space-y-8">
@@ -153,10 +167,20 @@ export function StudioForm({
 
         <div className="flex flex-col gap-3 border-t hairline pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-silver-400">
-            <span className="mr-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-200">
-              Demo mode
+            <span
+              className={cn(
+                "mr-2 rounded-full border px-2 py-0.5 text-xs font-semibold uppercase tracking-wider",
+                provider.isDemo
+                  ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
+                  : "border-cyan-400/40 bg-cyan-400/10 text-cyan-200",
+              )}
+            >
+              {provider.isDemo ? "Demo mode" : provider.label}
             </span>
-            {VARIATIONS_PER_GENERATION} variations · <strong className="text-white">0 credits</strong>. Images are placeholders until AI is connected.
+            {VARIATIONS_PER_GENERATION} variations · <strong className="text-white">0 credits</strong>.{" "}
+            {provider.isDemo
+              ? "Images are placeholders until AI is connected."
+              : "Images appear one by one (about 15 seconds each)."}
           </p>
           <SubmitButton pendingText="Generating…" className="sm:min-w-44">
             {job ? "Generate again" : "Generate"}
@@ -165,7 +189,7 @@ export function StudioForm({
       </form>
 
       {job ? (
-        <section aria-labelledby="results-title" className="space-y-4">
+        <section id={`results-${job.id}`} aria-labelledby="results-title" className="scroll-mt-24 space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 id="results-title" className="text-lg font-semibold">
@@ -174,7 +198,7 @@ export function StudioForm({
               <p className="text-sm text-silver-400">
                 {job.isDemo
                   ? "Demo placeholders — the real AI will draw your description here."
-                  : `Made with ${job.model}.`}
+                  : `Painting ${Math.min(activeIndex + 1, job.images.length)} of ${job.images.length}… Made with free AI (${job.model}). You can keep one as soon as it appears.`}
               </p>
             </div>
             {!characterId ? (
@@ -195,15 +219,25 @@ export function StudioForm({
           </div>
 
           <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {job.seeds.map((seed, i) => (
+            {job.images.map(({ seed, imageUrl }, i) => (
               <li key={seed} className="panel overflow-hidden">
-                <DemoArt
-                  seed={seed}
-                  style={job.input.style}
-                  mood={job.input.mood}
-                  aspect={job.input.aspect}
-                  className="block w-full"
-                />
+                {imageUrl ? (
+                  <AiImage
+                    url={imageUrl}
+                    alt={`Option ${i + 1}: ${job.input.prompt}`}
+                    aspect={job.input.aspect}
+                    start={i <= activeIndex}
+                    onSettled={() => advance(job.id, i)}
+                  />
+                ) : (
+                  <DemoArt
+                    seed={seed}
+                    style={job.input.style}
+                    mood={job.input.mood}
+                    aspect={job.input.aspect}
+                    className="block w-full"
+                  />
+                )}
                 <form action={characterId ? addCharacterVersion : saveNewCharacter} className="p-3">
                   <input type="hidden" name="jobId" value={job.id} />
                   <input type="hidden" name="seed" value={seed} />

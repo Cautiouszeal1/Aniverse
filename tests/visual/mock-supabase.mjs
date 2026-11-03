@@ -61,6 +61,17 @@ http.createServer(async (req, res) => {
   };
   const p = url.pathname;
 
+  // Stand-in for the Pollinations image endpoint (test only).
+  if (p.startsWith("/prompt/")) {
+    globalThis.__imgHits = (globalThis.__imgHits || 0) + 1;
+    const seed = Number(url.searchParams.get("seed") || 1);
+    const hue = seed % 360;
+    const w = url.searchParams.get("width"), h = url.searchParams.get("height");
+    await new Promise((r) => setTimeout(r, 700));
+    res.writeHead(200, { "content-type": "image/svg+xml", "access-control-allow-origin": "*" });
+    return res.end(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},70%,45%)"/><stop offset="1" stop-color="hsl(${(hue+80)%360},70%,25%)"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="50%" cy="40%" r="18%" fill="hsl(${(hue+40)%360},80%,75%)"/><rect x="35%" y="55%" width="30%" height="35%" rx="20" fill="hsl(${(hue+40)%360},60%,60%)"/><text x="50%" y="96%" text-anchor="middle" font-size="22" fill="#fff" font-family="sans-serif">AI image stand-in · seed ${seed}</text></svg>`);
+  }
+  if (p === "/__hits") return send(200, { hits: globalThis.__imgHits || 0 });
   if (p === "/auth/v1/user") return send(200, user);
   if (p === "/rest/v1/rpc/my_credit_balance")
     return send(200, db.credit_ledger.reduce((s, r) => s + r.delta, 0));

@@ -10,7 +10,9 @@ export const site = {
   tagline: "Create Worlds. Bring Stories to Life.",
   description:
     "AniVerse is building Ani Studio, a browser-based studio for creating characters, shaping stories, building storyboards and generating short animations with AI.",
-  status: "In development — closed beta planned",
+  status: isSupabaseConfigured
+    ? "Free closed beta — now open"
+    : "In development — closed beta planned",
   /** Set NEXT_PUBLIC_CONTACT_EMAIL to enable the contact link. */
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || null,
   /** True once Supabase is configured for this deployment. */

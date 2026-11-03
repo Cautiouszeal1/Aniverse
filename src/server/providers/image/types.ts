@@ -11,8 +11,8 @@ export type CharacterImageInput = {
 export type GeneratedImage = {
   /** Deterministic seed (demo) or provider seed. */
   seed: string;
-  /** Private storage path once stored (real providers only). */
-  imagePath?: string;
+  /** Where the finished image can be loaded from (URL-based providers). */
+  imageUrl?: string;
 };
 
 export type ImageGenerationResult = {
@@ -29,6 +29,8 @@ export interface ImageProvider {
   readonly model: string;
   /** True for the free test provider, whose output is clearly labelled. */
   readonly isDemo: boolean;
+  /** Short label shown to users, e.g. "Demo" or "Free AI (beta)". */
+  readonly label: string;
   /** Credits charged for one generation with these inputs. */
   estimateCredits(input: CharacterImageInput): number;
   generate(input: CharacterImageInput, opts: { idempotencyKey: string }): Promise<ImageGenerationResult>;

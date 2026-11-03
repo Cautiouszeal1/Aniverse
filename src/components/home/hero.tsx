@@ -122,9 +122,15 @@ export function Hero() {
             in one place.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/#workflow" size="lg">
-              See how it works
-            </ButtonLink>
+            {site.accountsOpen ? (
+              <ButtonLink href="/signup" size="lg">
+                Create free account
+              </ButtonLink>
+            ) : (
+              <ButtonLink href="/#workflow" size="lg">
+                See how it works
+              </ButtonLink>
+            )}
             <ButtonLink href="/#studio" size="lg" variant="secondary">
               Explore Ani Studio
             </ButtonLink>

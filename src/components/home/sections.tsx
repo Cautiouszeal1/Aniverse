@@ -193,7 +193,7 @@ export function StudioOverview() {
             lead="Ani Studio is the first AniVerse product. These are the workspaces being built for the closed beta."
           />
           <Badge tone="violet" className="self-start md:self-auto">
-            In development
+            {site.accountsOpen ? "Beta" : "In development"}
           </Badge>
         </div>
 
@@ -401,7 +401,9 @@ const faqs = [
   },
   {
     q: "Can I use Ani Studio today?",
-    a: "Not yet. Ani Studio is in development and a closed beta is planned. Sign-up will open on this site when the beta starts.",
+    a: site.accountsOpen
+      ? "Yes — the free closed beta is open. Create an account to try Character Studio. Storyboards and animation are being added next."
+      : "Not yet. Ani Studio is in development and a closed beta is planned. Sign-up will open on this site when the beta starts.",
   },
   {
     q: "Do I need a crypto wallet?",

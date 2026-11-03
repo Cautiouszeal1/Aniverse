@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CharacterWithLatest } from "@/lib/data";
 import { formatDate } from "@/lib/data";
-import { DemoArt } from "./demo-art";
+import { CharacterVisual } from "./character-visual";
 
 export function CharacterCard({ c }: { c: CharacterWithLatest }) {
   return (
@@ -11,11 +11,13 @@ export function CharacterCard({ c }: { c: CharacterWithLatest }) {
     >
       <div className="aspect-square overflow-hidden bg-navy-900">
         {c.latest ? (
-          <DemoArt
+          <CharacterVisual
+            imagePath={c.latest.image_path}
             seed={c.latest.seed}
             style={c.latest.style}
             mood={c.latest.mood}
             aspect="1:1"
+            name={c.name}
             className="block h-full w-full transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : null}
