@@ -12,6 +12,7 @@ import { PanelSkeleton } from "@/components/dashboard/page-header";
 import { ConfirmDelete } from "@/components/studio/confirm-delete";
 import { CharacterVisual } from "@/components/studio/character-visual";
 import { getImageProvider } from "@/server/providers/image";
+import { pollinationsServerMode } from "@/server/providers/image/pollinations";
 import { StudioForm } from "@/components/studio/studio-form";
 import { SubmitButton } from "@/components/ui/form";
 import { ASPECTS, MOODS, STYLES, labelFor } from "@/lib/characters/options";
@@ -45,7 +46,7 @@ async function CharacterContent({ params }: { params: Promise<{ id: string }> })
       <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
         <div className="panel overflow-hidden">
           {current ? (
-            <CharacterVisual imagePath={current.image_path} seed={current.seed} style={current.style} mood={current.mood} aspect={current.aspect_ratio} name={character.name} className="block w-full" />
+            <CharacterVisual imagePath={current.image_path} imageUrl={current.image_url} seed={current.seed} style={current.style} mood={current.mood} aspect={current.aspect_ratio} name={character.name} className="block w-full" />
           ) : null}
         </div>
 
@@ -103,7 +104,7 @@ async function CharacterContent({ params }: { params: Promise<{ id: string }> })
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {older.map((v) => (
               <li key={v.id} className="panel overflow-hidden">
-                <CharacterVisual imagePath={v.image_path} seed={v.seed} style={v.style} mood={v.mood} aspect="1:1" name={`${character.name} v${v.version}`} className="block w-full" showBadge={false} />
+                <CharacterVisual imagePath={v.image_path} imageUrl={v.image_url} seed={v.seed} style={v.style} mood={v.mood} aspect="1:1" name={`${character.name} v${v.version}`} className="block w-full" showBadge={false} />
                 <div className="flex items-center justify-between gap-2 p-3">
                   <span className="text-xs text-silver-400">v{v.version} · {formatDate(v.created_at)}</span>
                   <form action={deleteVersion}>
@@ -129,7 +130,7 @@ async function CharacterContent({ params }: { params: Promise<{ id: string }> })
           projectId={character.project_id}
           characterId={character.id}
           initialKey={randomUUID()}
-          provider={{ isDemo: getImageProvider().isDemo, label: getImageProvider().label }}
+          provider={{ isDemo: getImageProvider().isDemo, label: getImageProvider().label, serverMode: pollinationsServerMode() }}
           defaults={current ? { prompt: current.prompt, style: current.style, mood: current.mood, aspect: current.aspect_ratio } : undefined}
         />
       </section>

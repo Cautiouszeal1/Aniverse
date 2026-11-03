@@ -14,6 +14,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { str } from "@/lib/validation";
 import { getImageProvider } from "@/server/providers/image";
+import { RenderError, renderPollinationsImage } from "@/server/providers/image/pollinations";
+import { jobImagePath, signedUrlFor, uploadImage } from "@/server/images/storage";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 const MAX_JOBS_PER_HOUR = 40;
@@ -168,7 +170,16 @@ async function loadJobSeed(
     (i) => i.seed === seed,
   );
   if (!image) return null;
-  return { ...job, imageUrl: image.imageUrl ?? null };
+  if (image.imageUrl) return { ...job, imagePath: image.imageUrl };
+  if (job.is_demo) return { ...job, imagePath: null };
+  // Server-rendered image: it must already be in the user's storage.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const path = jobImagePath(user.id, job.id, seed);
+  if (!(await signedUrlFor(supabase, path))) return null;
+  return { ...job, imagePath: path };
 }
 
 export async function saveNewCharacter(form: FormData): Promise<void> {
@@ -199,7 +210,7 @@ export async function saveNewCharacter(form: FormData): Promise<void> {
     model: job.model,
     is_demo: job.is_demo,
     seed,
-    image_path: job.imageUrl,
+    image_path: job.imagePath,
     job_id: job.id,
   });
 
@@ -236,7 +247,7 @@ export async function addCharacterVersion(form: FormData): Promise<void> {
     model: job.model,
     is_demo: job.is_demo,
     seed,
-    image_path: job.imageUrl,
+    image_path: job.imagePath,
     job_id: job.id,
   });
   if (error) return;
@@ -273,4 +284,50 @@ export async function deleteCharacter(form: FormData): Promise<void> {
   const { supabase } = await requireUser();
   await supabase.from("characters").delete().eq("id", id);
   redirect(UUID_RE.test(projectId) ? `/dashboard/projects/${projectId}` : "/dashboard/studio");
+}
+
+export type RenderResult = { url: string } | { error: string; retryable: boolean };
+
+/**
+ * Renders one image of a job on the server (with the secret Pollinations key),
+ * saves it privately to the user's storage folder and returns a signed URL.
+ * Safe to call again: an image that already exists is returned as-is.
+ */
+export async function renderJobImage(jobId: string, seed: string): Promise<RenderResult> {
+  if (!UUID_RE.test(jobId) || !/^\d{1,12}$/.test(seed)) {
+    return { error: "Invalid request.", retryable: false };
+  }
+  const { supabase, user } = await requireUser();
+
+  const { data: job } = await supabase
+    .from("generation_jobs")
+    .select("id, provider, is_demo, status, input, output")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job || job.status !== "completed" || job.is_demo || job.provider !== "pollinations") {
+    return { error: "This generation could not be found.", retryable: false };
+  }
+  const known = ((job.output?.images ?? []) as { seed: string }[]).some((i) => i.seed === seed);
+  if (!known) return { error: "This image could not be found.", retryable: false };
+
+  const path = jobImagePath(user.id, jobId, seed);
+  const existing = await signedUrlFor(supabase, path);
+  if (existing) return { url: existing };
+
+  try {
+    const { bytes, contentType } = await renderPollinationsImage({
+      prompt: job.input.prompt,
+      style: job.input.style,
+      mood: job.input.mood,
+      aspect: job.input.aspectRatio,
+      seed: Number(seed),
+    });
+    await uploadImage(supabase, path, bytes, contentType);
+  } catch (e) {
+    if (e instanceof RenderError) return { error: e.message, retryable: e.retryable };
+    return { error: "Couldn't save the image. Please try again.", retryable: true };
+  }
+
+  const url = await signedUrlFor(supabase, path);
+  return url ? { url } : { error: "Couldn't load the saved image.", retryable: true };
 }

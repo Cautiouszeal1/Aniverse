@@ -7,6 +7,7 @@ import { PageHeader, PanelSkeleton } from "@/components/dashboard/page-header";
 import { StudioForm } from "@/components/studio/studio-form";
 import { getProject } from "@/lib/data";
 import { getImageProvider } from "@/server/providers/image";
+import { pollinationsServerMode } from "@/server/providers/image/pollinations";
 
 export const metadata: Metadata = { title: "Character Studio" };
 
@@ -35,7 +36,7 @@ async function Studio({ params }: { params: Promise<{ id: string }> }) {
       <StudioForm
         projectId={id}
         initialKey={randomUUID()}
-        provider={{ isDemo: getImageProvider().isDemo, label: getImageProvider().label }}
+        provider={{ isDemo: getImageProvider().isDemo, label: getImageProvider().label, serverMode: pollinationsServerMode() }}
       />
     </div>
   );

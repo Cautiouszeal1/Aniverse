@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { signedUrlsFor } from "@/server/images/storage";
 
 export type Project = {
   id: string;
@@ -101,6 +102,8 @@ export type CharacterVersion = {
   seed: string;
   image_path: string | null;
   created_at: string;
+  /** Short-lived signed URL when the image is in private storage. */
+  image_url?: string | null;
 };
 
 export type CharacterWithLatest = {
@@ -145,9 +148,19 @@ export async function listCharacters(projectId?: string): Promise<CharacterWithL
     .order("version", { ascending: false });
   if (vErr) throw new Error("Could not load character versions");
 
+  const all = (versions ?? []) as CharacterVersion[];
+  const latestByChar = new Map<string, CharacterVersion>();
+  for (const v of all) if (!latestByChar.has(v.character_id)) latestByChar.set(v.character_id, v);
+  const urls = await signedUrlsFor(supabase, [...latestByChar.values()].map((v) => v.image_path ?? ""));
+
   return chars.map((c) => {
-    const vs = (versions ?? []).filter((v) => v.character_id === c.id) as CharacterVersion[];
-    return { ...c, versionCount: vs.length, latest: vs[0] ?? null };
+    const vs = all.filter((v) => v.character_id === c.id);
+    const latest = latestByChar.get(c.id) ?? null;
+    return {
+      ...c,
+      versionCount: vs.length,
+      latest: latest ? { ...latest, image_url: urls.get(latest.image_path ?? "") ?? null } : null,
+    };
   });
 }
 
@@ -167,5 +180,10 @@ export async function getCharacter(id: string) {
     .eq("character_id", id)
     .order("version", { ascending: false });
   if (vErr) throw new Error("Could not load versions");
-  return { ...character, versions: (versions ?? []) as CharacterVersion[] };
+  const vs = (versions ?? []) as CharacterVersion[];
+  const urls = await signedUrlsFor(supabase, vs.map((v) => v.image_path ?? ""));
+  return {
+    ...character,
+    versions: vs.map((v) => ({ ...v, image_url: urls.get(v.image_path ?? "") ?? null })),
+  };
 }

@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/cn";
 import { AiImage } from "./ai-image";
 import { DemoArt } from "./demo-art";
+import { ServerImage } from "./server-image";
 
 function newKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -84,7 +85,7 @@ export function StudioForm({
   /** Server-generated so the first render matches between server and browser. */
   initialKey: string;
   /** Which image engine is active (decided on the server). */
-  provider: { isDemo: boolean; label: string };
+  provider: { isDemo: boolean; label: string; serverMode: boolean };
 }) {
   const [requestKey, setRequestKey] = useState(initialKey);
   const [state, action] = useActionState(async (prev: GenerateState, form: FormData) => {
@@ -108,6 +109,9 @@ export function StudioForm({
     if (!jobId) return;
     document.getElementById(`results-${jobId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [jobId]);
+  const [ready, setReady] = useState<Record<string, true>>({});
+  const markReady = (jobId: string, seed: string) =>
+    setReady((r) => ({ ...r, [`${jobId}:${seed}`]: true }));
   const advance = (jobId: string, i: number) =>
     setLoadedUpTo((cur) => (cur.jobId === jobId && cur.n > i ? cur : { jobId, n: i + 1 }));
 
@@ -180,7 +184,9 @@ export function StudioForm({
             {VARIATIONS_PER_GENERATION} variations · <strong className="text-white">0 credits</strong>.{" "}
             {provider.isDemo
               ? "Images are placeholders until AI is connected."
-              : "Images appear one by one (about 15 seconds each)."}
+              : provider.serverMode
+                ? "All 4 options are painted at once."
+                : "Free no-account mode: images appear slowly, one at a time."}
           </p>
           <SubmitButton pendingText="Generating…" className="sm:min-w-44">
             {job ? "Generate again" : "Generate"}
@@ -198,7 +204,9 @@ export function StudioForm({
               <p className="text-sm text-silver-400">
                 {job.isDemo
                   ? "Demo placeholders — the real AI will draw your description here."
-                  : `Painting ${Math.min(activeIndex + 1, job.images.length)} of ${job.images.length}… Made with free AI (${job.model}). You can keep one as soon as it appears.`}
+                  : job.images.some((im) => im.imageUrl)
+                    ? `Painting ${Math.min(activeIndex + 1, job.images.length)} of ${job.images.length}… Made with free AI (${job.model}). You can keep one as soon as it appears.`
+                    : `Made with free AI (${job.model}). Each image takes a few seconds; keep one as soon as it appears.`}
               </p>
             </div>
             {!characterId ? (
@@ -221,7 +229,15 @@ export function StudioForm({
           <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {job.images.map(({ seed, imageUrl }, i) => (
               <li key={seed} className="panel overflow-hidden">
-                {imageUrl ? (
+                {!imageUrl && !job.isDemo ? (
+                  <ServerImage
+                    jobId={job.id}
+                    seed={seed}
+                    aspect={job.input.aspect}
+                    alt={`Option ${i + 1}: ${job.input.prompt}`}
+                    onReady={() => markReady(job.id, seed)}
+                  />
+                ) : imageUrl ? (
                   <AiImage
                     url={imageUrl}
                     alt={`Option ${i + 1}: ${job.input.prompt}`}
@@ -246,7 +262,12 @@ export function StudioForm({
                   ) : (
                     <input type="hidden" name="name" value={name} />
                   )}
-                  <SubmitButton pendingText="Saving…" variant="secondary" className="h-9 w-full text-xs">
+                  <SubmitButton
+                    pendingText="Saving…"
+                    variant="secondary"
+                    className="h-9 w-full text-xs"
+                    disabled={!imageUrl && !job.isDemo && !ready[`${job.id}:${seed}`]}
+                  >
                     {characterId ? "Save as new version" : `Keep option ${i + 1}`}
                   </SubmitButton>
                 </form>

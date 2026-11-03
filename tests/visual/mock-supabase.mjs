@@ -4,6 +4,9 @@
 // against real Postgres in tests/db. Never used by the app at runtime.
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+const FIXTURE = readFileSync(new URL("./fixture.png", import.meta.url));
+const storage = new Map(); // "bucket/path" -> {bytes, type}
 
 const USER_ID = "11111111-1111-1111-1111-111111111111";
 const user = { id: USER_ID, email: "ada@example.com", aud: "authenticated", role: "authenticated" };
@@ -53,8 +56,10 @@ const defaults = {
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
-  let body = "";
-  for await (const chunk of req) body += chunk;
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks);
+  const body = raw.toString("binary");
   const send = (status, payload, headers = {}) => {
     res.writeHead(status, { "content-type": "application/json", ...headers });
     res.end(payload === undefined ? "" : JSON.stringify(payload));
@@ -71,7 +76,44 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { "content-type": "image/svg+xml", "access-control-allow-origin": "*" });
     return res.end(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},70%,45%)"/><stop offset="1" stop-color="hsl(${(hue+80)%360},70%,25%)"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="50%" cy="40%" r="18%" fill="hsl(${(hue+40)%360},80%,75%)"/><rect x="35%" y="55%" width="30%" height="35%" rx="20" fill="hsl(${(hue+40)%360},60%,60%)"/><text x="50%" y="96%" text-anchor="middle" font-size="22" fill="#fff" font-family="sans-serif">AI image stand-in · seed ${seed}</text></svg>`);
   }
-  if (p === "/__hits") return send(200, { hits: globalThis.__imgHits || 0 });
+  if (p === "/__hits") return send(200, { hits: globalThis.__imgHits || 0, keyed: globalThis.__keyed || 0, stored: storage.size });
+
+  // Stand-in for gen.pollinations.ai keyed image API (test only).
+  if (p.startsWith("/image/")) {
+    if (req.headers.authorization !== "Bearer sk_test_key") return send(401, { error: "bad key" });
+    globalThis.__keyed = (globalThis.__keyed || 0) + 1;
+    await new Promise((r) => setTimeout(r, 400));
+    res.writeHead(200, { "content-type": "image/png" });
+    return res.end(FIXTURE);
+  }
+
+  // Stand-in for Supabase Storage (test only).
+  const so = p.match(/^\/storage\/v1\/object\/(sign\/)?([^/]+)\/?(.*)$/);
+  if (so) {
+    const [, sign, bucket, objPath] = so;
+    const key = `${bucket}/${decodeURIComponent(objPath)}`;
+    if (sign && req.method === "POST" && !objPath) {
+      const { paths } = JSON.parse(body || "{}");
+      return send(200, paths.map((path) => storage.has(`${bucket}/${path}`)
+        ? { path, signedURL: `/object/sign/${bucket}/${path}?token=t`, error: null }
+        : { path, signedURL: null, error: "Either the object does not exist or you do not have access to it" }));
+    }
+    if (sign && req.method === "POST") {
+      if (!storage.has(key)) return send(400, { statusCode: "404", error: "not_found", message: "Object not found" });
+      return send(200, { signedURL: `/object/sign/${key}?token=t` });
+    }
+    if (sign && req.method === "GET") {
+      const obj = storage.get(key);
+      if (!obj) return send(404, {});
+      res.writeHead(200, { "content-type": obj.type });
+      return res.end(obj.bytes);
+    }
+    if (req.method === "POST") {
+      if (storage.has(key)) return send(400, { statusCode: "409", error: "Duplicate", message: "The resource already exists" });
+      storage.set(key, { bytes: raw, type: req.headers["content-type"] || "application/octet-stream" });
+      return send(200, { Key: key, Id: randomUUID() });
+    }
+  }
   if (p === "/auth/v1/user") return send(200, user);
   if (p === "/rest/v1/rpc/my_credit_balance")
     return send(200, db.credit_ledger.reduce((s, r) => s + r.delta, 0));

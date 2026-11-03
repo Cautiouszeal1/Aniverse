@@ -48,3 +48,13 @@ Free projects pause after 7 days with no activity. Once the site is live, a free
 2. Click the link in the confirmation email. You should land on your dashboard.
 3. Create a project, rename it, archive it and delete it.
 4. Sign out, then use **Forgot password** and set a new password.
+
+## Free AI images (Pollinations key) — recommended
+Without a key, images use Pollinations' no-account mode (1 image per 45 s, watermark).
+1. Run `supabase/migrations/20261103000400_image_storage.sql` in the SQL Editor (creates the private image bucket).
+2. Sign in at https://enter.pollinations.ai (GitHub login) and create a **secret key** (`sk_…`), allowed for the `flux` model.
+3. In Vercel → Settings → Environments → Production → Add variable:
+   - Key `POLLINATIONS_API_KEY`, value your `sk_…` key, type **Sensitive**.
+4. Redeploy. Character Studio will say "All 4 options are painted at once".
+
+Never paste the secret key in chat, code or GitHub.

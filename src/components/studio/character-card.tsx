@@ -13,6 +13,7 @@ export function CharacterCard({ c }: { c: CharacterWithLatest }) {
         {c.latest ? (
           <CharacterVisual
             imagePath={c.latest.image_path}
+            imageUrl={c.latest.image_url}
             seed={c.latest.seed}
             style={c.latest.style}
             mood={c.latest.mood}
