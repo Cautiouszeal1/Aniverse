@@ -16,6 +16,9 @@ export async function GET() {
     publishableKeySet: Boolean(publishable),
     publishableKeyLooksValid: publishable.startsWith("sb_publishable_") || publishable.startsWith("eyJ"),
     anonKeySet: Boolean(anon),
+    imageProvider: (process.env.IMAGE_PROVIDER ?? "pollinations").trim().toLowerCase(),
+    pollinationsKeySet: Boolean(process.env.POLLINATIONS_API_KEY?.trim()),
+    pollinationsKeyLooksValid: (process.env.POLLINATIONS_API_KEY?.trim() ?? "").startsWith("sk_"),
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
   });
 }
