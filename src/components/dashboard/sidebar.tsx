@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/cn";
@@ -14,7 +14,7 @@ type NavItem =
 const NAV: NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: "M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-4H4zm10-11h6V4h-6z" },
   { label: "My Projects", href: "/dashboard/projects", icon: "M3 7h7l2 2h9v10H3z" },
-  { label: "Character Studio", soon: "Milestone 3", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5" },
+  { label: "Character Studio", href: "/dashboard/studio", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5" },
   { label: "Storyboards", soon: "Milestone 4", icon: "M3 5h7v6H3zm11 0h7v6h-7zM3 14h7v6H3zm11 0h7v6h-7z" },
   { label: "Animations", soon: "Milestone 5", icon: "M3 5h18v14H3zm7 4v6l5-3z" },
   { label: "Media Library", soon: "Milestone 5", icon: "M4 5h16v14H4zm0 10 4.5-4 4 3.5 3-2.5L20 15" },
@@ -23,8 +23,21 @@ const NAV: NavItem[] = [
   { label: "Help", href: "/#faq", icon: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm-2.5-11.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14m0 3h.01" },
 ];
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function ActiveNavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  return <NavItems pathname={pathname} onNavigate={onNavigate} />;
+}
+
+/** Highlighting the current page reads the URL, so it streams in behind Suspense. */
+function NavList({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <Suspense fallback={<NavItems pathname="" onNavigate={onNavigate} />}>
+      <ActiveNavList onNavigate={onNavigate} />
+    </Suspense>
+  );
+}
+
+function NavItems({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   return (
     <ul className="space-y-1">
       {NAV.map((item) => {
@@ -50,8 +63,18 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
             </li>
           );
         }
+        const inStudio =
+          pathname.startsWith("/dashboard/studio") ||
+          pathname.startsWith("/dashboard/characters") ||
+          pathname.endsWith("/studio");
         const active =
-          item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
+          item.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : item.href === "/dashboard/studio"
+              ? inStudio
+              : item.href === "/dashboard/projects"
+                ? pathname.startsWith(item.href) && !inStudio
+                : pathname.startsWith(item.href);
         return (
           <li key={item.label}>
             <Link

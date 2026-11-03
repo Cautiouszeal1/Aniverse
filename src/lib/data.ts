@@ -82,3 +82,90 @@ export function formatDate(iso: string) {
 export function usd(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
+
+// ---------------------------------------------------------------------
+// Characters
+// ---------------------------------------------------------------------
+
+export type CharacterVersion = {
+  id: string;
+  character_id: string;
+  version: number;
+  prompt: string;
+  style: string;
+  mood: string;
+  aspect_ratio: string;
+  provider: string;
+  model: string;
+  is_demo: boolean;
+  seed: string;
+  image_path: string | null;
+  created_at: string;
+};
+
+export type CharacterWithLatest = {
+  id: string;
+  name: string;
+  project_id: string;
+  updated_at: string;
+  versionCount: number;
+  latest: CharacterVersion | null;
+};
+
+const VERSION_COLUMNS =
+  "id, character_id, version, prompt, style, mood, aspect_ratio, provider, model, is_demo, seed, image_path, created_at";
+
+export async function getProject(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, title, description, status, created_at, updated_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error("Could not load project");
+  return (data as Project | null) ?? null;
+}
+
+export async function listCharacters(projectId?: string): Promise<CharacterWithLatest[]> {
+  const supabase = await createClient();
+  let q = supabase
+    .from("characters")
+    .select("id, name, project_id, updated_at")
+    .order("updated_at", { ascending: false });
+  if (projectId) q = q.eq("project_id", projectId);
+  const { data: chars, error } = await q;
+  if (error) throw new Error("Could not load characters");
+  if (!chars?.length) return [];
+
+  const { data: versions, error: vErr } = await supabase
+    .from("character_versions")
+    .select(VERSION_COLUMNS)
+    .in("character_id", chars.map((c) => c.id))
+    .order("version", { ascending: false });
+  if (vErr) throw new Error("Could not load character versions");
+
+  return chars.map((c) => {
+    const vs = (versions ?? []).filter((v) => v.character_id === c.id) as CharacterVersion[];
+    return { ...c, versionCount: vs.length, latest: vs[0] ?? null };
+  });
+}
+
+export async function getCharacter(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const supabase = await createClient();
+  const { data: character, error } = await supabase
+    .from("characters")
+    .select("id, name, project_id, created_at, updated_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error("Could not load character");
+  if (!character) return null;
+  const { data: versions, error: vErr } = await supabase
+    .from("character_versions")
+    .select(VERSION_COLUMNS)
+    .eq("character_id", id)
+    .order("version", { ascending: false });
+  if (vErr) throw new Error("Could not load versions");
+  return { ...character, versions: (versions ?? []) as CharacterVersion[] };
+}

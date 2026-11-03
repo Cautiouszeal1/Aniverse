@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { CreateProjectForm, ProjectActions } from "@/components/dashboard/forms";
 import { PageHeader, PanelSkeleton } from "@/components/dashboard/page-header";
@@ -45,7 +46,11 @@ function ProjectSection({ title, projects, empty }: { title: string; projects: P
         <ul className="grid gap-4 md:grid-cols-2">
           {projects.map((p) => (
             <li key={p.id} className="panel p-5">
-              <h3 className="text-lg font-semibold break-words">{p.title}</h3>
+              <h3 className="text-lg font-semibold break-words">
+                <Link href={`/dashboard/projects/${p.id}`} className="hover:text-cyan-200">
+                  {p.title}
+                </Link>
+              </h3>
               {p.description ? (
                 <p className="mt-1.5 line-clamp-3 text-sm text-silver-400">{p.description}</p>
               ) : null}

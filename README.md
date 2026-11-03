@@ -14,6 +14,7 @@ cp .env.example .env.local   # optional: set NEXT_PUBLIC_CONTACT_EMAIL
 npm run dev                  # http://localhost:3000
 npm run check                # lint + typecheck + production build
 tests/db/run.sh              # database tests against a local Postgres
+npm run check:configured     # build as if Supabase is connected (catches dashboard-only build errors)
 ```
 
 Requires Node.js 20.9+ (tested on Node 22).
@@ -60,7 +61,8 @@ src/
 | Dashboard: overview, projects (create/rename/archive/delete), credits page, settings | ✅ |
 | Credit ledger: append-only, idempotent purchases, no double charge, no overspend | ✅ DB tests pass |
 | Credit pack: Starter $10 = 500 credits ($5 AI usage, $5 AniVerse) | ✅ Data in place; **Buy** is disabled until payments (Milestone 6) |
-| Character Studio, Storyboards, Animations, Media Library | ⏸ Shown as "Soon" in the sidebar (Milestones 3–5) |
+| Character Studio: describe, style/mood/shape, 4 variations, keep, rename, refine into new versions, delete | ✅ Works in **demo mode** (free, clearly labelled placeholder art); real AI provider plugs into `src/server/providers/image/` |
+| Storyboards, Animations, Media Library | ⏸ Shown as "Soon" (Milestones 4–5) |
 | Account deletion request | ⏸ Disabled with explanation (Milestone 6) |
 | Payments (Paystack), AI providers, admin console | ❌ Not started |
 

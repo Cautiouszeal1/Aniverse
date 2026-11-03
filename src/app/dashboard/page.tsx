@@ -51,7 +51,9 @@ async function Overview() {
             <ul className="mt-4 divide-y divide-silver-300/10">
               {recent.map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-4 py-3">
-                  <span className="truncate text-silver-100">{p.title}</span>
+                  <Link href={`/dashboard/projects/${p.id}`} className="truncate text-silver-100 hover:text-cyan-200">
+                    {p.title}
+                  </Link>
                   <span className="shrink-0 text-xs text-silver-500">Updated {formatDate(p.updated_at)}</span>
                 </li>
               ))}
