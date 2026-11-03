@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { PageHeader, PanelSkeleton } from "@/components/dashboard/page-header";
 import { CharacterCard } from "@/components/studio/character-card";
 import { ButtonLink } from "@/components/ui/button";
-import { getProject, listCharacters } from "@/lib/data";
+import { getProject, listCharacters, storyboardSummaries } from "@/lib/data";
+import { formatDuration } from "@/lib/storyboard/options";
 
 export default function ProjectPage({ params }: PageProps<"/dashboard/projects/[id]">) {
   return (
@@ -18,7 +19,8 @@ async function ProjectContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const project = await getProject(id);
   if (!project) notFound();
-  const characters = await listCharacters(id);
+  const [characters, summaries] = await Promise.all([listCharacters(id), storyboardSummaries()]);
+  const summary = summaries.get(id);
 
   return (
     <div className="space-y-8">
@@ -62,15 +64,22 @@ async function ProjectContent({ params }: { params: Promise<{ id: string }> }) {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        {[
-          ["Storyboard", "Milestone 4"],
-          ["Animations", "Milestone 5"],
-        ].map(([t, m]) => (
-          <div key={t} className="rounded-2xl border border-dashed border-silver-300/15 p-5">
-            <h3 className="font-semibold text-silver-300">{t}</h3>
-            <p className="mt-1 text-sm text-silver-500">Arrives in {m}.</p>
-          </div>
-        ))}
+        <Link
+          href={`/dashboard/projects/${id}/storyboard`}
+          className="panel block p-5 transition-colors hover:border-cyan-400/40"
+        >
+          <h3 className="font-semibold">Storyboard</h3>
+          <p className="mt-1 text-sm text-silver-400">
+            {summary?.scenes
+              ? `${summary.scenes} scene${summary.scenes === 1 ? "" : "s"} · ${formatDuration(summary.seconds)}`
+              : "Plan your story scene by scene."}
+          </p>
+          <span className="mt-3 inline-block text-sm text-cyan-300">Open storyboard →</span>
+        </Link>
+        <div className="rounded-2xl border border-dashed border-silver-300/15 p-5">
+          <h3 className="font-semibold text-silver-300">Animations</h3>
+          <p className="mt-1 text-sm text-silver-500">Arrives in Milestone 5.</p>
+        </div>
       </section>
     </div>
   );

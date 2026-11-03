@@ -187,3 +187,78 @@ export async function getCharacter(id: string) {
     versions: vs.map((v) => ({ ...v, image_url: urls.get(v.image_path ?? "") ?? null })),
   };
 }
+
+// ---------------------------------------------------------------------
+// Storyboards
+// ---------------------------------------------------------------------
+
+export type Scene = {
+  id: string;
+  position: number;
+  title: string;
+  description: string;
+  dialogue: string;
+  shot_type: string;
+  camera_notes: string;
+  duration_seconds: number;
+  character_ids: string[];
+  updated_at: string;
+};
+
+export type StoryboardRevision = {
+  id: string;
+  label: string;
+  scene_count: number;
+  created_at: string;
+};
+
+export async function getStoryboard(projectId: string) {
+  const supabase = await createClient();
+  const { data: board, error } = await supabase
+    .from("storyboards")
+    .select("id, title, updated_at")
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (error) throw new Error("Could not load storyboard");
+  if (!board) return { board: null, scenes: [] as Scene[], revisions: [] as StoryboardRevision[] };
+
+  const [{ data: scenes, error: sErr }, { data: revisions, error: rErr }] = await Promise.all([
+    supabase
+      .from("storyboard_scenes")
+      .select("id, position, title, description, dialogue, shot_type, camera_notes, duration_seconds, character_ids, updated_at")
+      .eq("storyboard_id", board.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("storyboard_revisions")
+      .select("id, label, scene_count, created_at")
+      .eq("storyboard_id", board.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
+  if (sErr || rErr) throw new Error("Could not load storyboard");
+  return {
+    board,
+    scenes: ((scenes ?? []) as Scene[]).map((s) => ({ ...s, duration_seconds: Number(s.duration_seconds) })),
+    revisions: (revisions ?? []) as StoryboardRevision[],
+  };
+}
+
+export async function storyboardSummaries() {
+  const supabase = await createClient();
+  const { data: boards, error } = await supabase.from("storyboards").select("id, project_id, updated_at");
+  if (error) throw new Error("Could not load storyboards");
+  if (!boards?.length) return new Map<string, { scenes: number; seconds: number }>();
+  const { data: scenes } = await supabase
+    .from("storyboard_scenes")
+    .select("storyboard_id, duration_seconds")
+    .in("storyboard_id", boards.map((b) => b.id));
+  const map = new Map<string, { scenes: number; seconds: number }>();
+  for (const b of boards) {
+    const own = (scenes ?? []).filter((s) => s.storyboard_id === b.id);
+    map.set(b.project_id, {
+      scenes: own.length,
+      seconds: own.reduce((t, s) => t + Number(s.duration_seconds), 0),
+    });
+  }
+  return map;
+}

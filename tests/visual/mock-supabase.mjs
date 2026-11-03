@@ -23,6 +23,9 @@ const db = {
   generation_jobs: [],
   characters: [],
   character_versions: [],
+  storyboards: [],
+  storyboard_scenes: [],
+  storyboard_revisions: [],
 };
 
 function applyFilters(rows, params) {
@@ -52,6 +55,9 @@ const defaults = {
   characters: () => ({ id: randomUUID(), created_at: now(), updated_at: now() }),
   character_versions: () => ({ id: randomUUID(), created_at: now() }),
   projects: () => ({ id: randomUUID(), status: "active", created_at: now(), updated_at: now() }),
+  storyboards: () => ({ id: randomUUID(), title: "Storyboard", created_at: now(), updated_at: now() }),
+  storyboard_scenes: () => ({ id: randomUUID(), title: "", description: "", dialogue: "", shot_type: "medium", camera_notes: "", duration_seconds: 4, character_ids: [], created_at: now(), updated_at: now() }),
+  storyboard_revisions: () => ({ id: randomUUID(), created_at: now() }),
 };
 
 http.createServer(async (req, res) => {
@@ -118,6 +124,21 @@ http.createServer(async (req, res) => {
   if (p === "/rest/v1/rpc/my_credit_balance")
     return send(200, db.credit_ledger.reduce((s, r) => s + r.delta, 0));
 
+  if (p === "/rest/v1/rpc/reorder_scenes") {
+    const { p_storyboard_id, p_scene_ids } = JSON.parse(body || "{}");
+    const scenes = db.storyboard_scenes.filter((x) => x.storyboard_id === p_storyboard_id);
+    if (scenes.length !== p_scene_ids.length) return send(400, { message: "scene_list_mismatch" });
+    p_scene_ids.forEach((id, i) => { const sc = scenes.find((x) => x.id === id); if (sc) sc.position = i; });
+    return send(200, null);
+  }
+  if (p === "/rest/v1/rpc/restore_storyboard_revision") {
+    const { p_revision_id } = JSON.parse(body || "{}");
+    const rev = db.storyboard_revisions.find((r) => r.id === p_revision_id);
+    if (!rev) return send(400, { message: "not_found" });
+    db.storyboard_scenes = db.storyboard_scenes.filter((x) => x.storyboard_id !== rev.storyboard_id);
+    rev.scenes.forEach((sc, i) => db.storyboard_scenes.push({ ...defaults.storyboard_scenes(), ...sc, storyboard_id: rev.storyboard_id, owner_id: USER_ID, position: i }));
+    return send(200, rev.scenes.length);
+  }
   const m = p.match(/^\/rest\/v1\/(\w+)$/);
   if (!m || !db[m[1]]) return send(404, {});
   const table = m[1];

@@ -15,7 +15,7 @@ const NAV: NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: "M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-4H4zm10-11h6V4h-6z" },
   { label: "My Projects", href: "/dashboard/projects", icon: "M3 7h7l2 2h9v10H3z" },
   { label: "Character Studio", href: "/dashboard/studio", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5" },
-  { label: "Storyboards", soon: "Milestone 4", icon: "M3 5h7v6H3zm11 0h7v6h-7zM3 14h7v6H3zm11 0h7v6h-7z" },
+  { label: "Storyboards", href: "/dashboard/storyboards", icon: "M3 5h7v6H3zm11 0h7v6h-7zM3 14h7v6H3zm11 0h7v6h-7z" },
   { label: "Animations", soon: "Milestone 5", icon: "M3 5h18v14H3zm7 4v6l5-3z" },
   { label: "Media Library", soon: "Milestone 5", icon: "M4 5h16v14H4zm0 10 4.5-4 4 3.5 3-2.5L20 15" },
   { label: "Credits & Billing", href: "/dashboard/credits", icon: "M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2 2.6 5 3.2 5 1.4 5 3.3-2.2 3-5 3-5-1.1-5-3" },
@@ -67,14 +67,18 @@ function NavItems({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
           pathname.startsWith("/dashboard/studio") ||
           pathname.startsWith("/dashboard/characters") ||
           pathname.endsWith("/studio");
+        const inStoryboard =
+          pathname.startsWith("/dashboard/storyboards") || pathname.endsWith("/storyboard");
         const active =
           item.href === "/dashboard"
             ? pathname === "/dashboard"
             : item.href === "/dashboard/studio"
               ? inStudio
-              : item.href === "/dashboard/projects"
-                ? pathname.startsWith(item.href) && !inStudio
-                : pathname.startsWith(item.href);
+              : item.href === "/dashboard/storyboards"
+                ? inStoryboard
+                : item.href === "/dashboard/projects"
+                  ? pathname.startsWith(item.href) && !inStudio && !inStoryboard
+                  : pathname.startsWith(item.href);
         return (
           <li key={item.label}>
             <Link

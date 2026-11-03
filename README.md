@@ -62,7 +62,8 @@ src/
 | Credit ledger: append-only, idempotent purchases, no double charge, no overspend | ✅ DB tests pass |
 | Credit pack: Starter $10 = 500 credits ($5 AI usage, $5 AniVerse) | ✅ Data in place; **Buy** is disabled until payments (Milestone 6) |
 | Character Studio: describe, style/mood/shape, 4 variations, keep, rename, refine into new versions, delete | ✅ Real AI images via **Pollinations.ai free tier** (FLUX; no key; loaded one by one in the browser, auto-retry when busy). `IMAGE_PROVIDER=demo` switches to placeholder art. Paid providers plug into `src/server/providers/image/` |
-| Storyboards, Animations, Media Library | ⏸ Shown as "Soon" (Milestones 4–5) |
+| Storyboard editor: scenes with title, action, dialogue, shot, camera notes, duration and characters; add, edit, duplicate, delete, reorder; saved versions with restore | ✅ |
+| Animations, Media Library | ⏸ Shown as "Soon" (Milestone 5) |
 | Account deletion request | ⏸ Disabled with explanation (Milestone 6) |
 | Payments (Paystack), AI providers, admin console | ❌ Not started |
 
