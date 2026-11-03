@@ -94,3 +94,20 @@ even if their phone is off.
 6. **Live test:** buy the Starter pack and pay from another wallet you own.
 
 To change wallet or network later, update the single row in `payment_settings` — no code changes.
+
+## Pay-safe generation (automatic refunds)
+Guarantee: a paid generation either delivers a result or the credits come back
+automatically. Nobody is charged while AniVerse AI is paused (e.g. its prepaid
+balance is low).
+
+1. **Database:** run `supabase/migrations/20261103000700_paid_jobs.sql` in the SQL Editor.
+2. **Refund safety net every minute** (SQL Editor, no secrets needed):
+   ```sql
+   select cron.schedule('aniverse-refund-stuck-jobs', '* * * * *',
+     $$ select public.refund_stuck_jobs(20) $$);
+   ```
+3. **Pause / resume by hand** (admin only), e.g. during maintenance:
+   ```sql
+   select public.set_ai_service_paused('video', true, 'maintenance');
+   select public.set_ai_service_paused('video', false);
+   ```
