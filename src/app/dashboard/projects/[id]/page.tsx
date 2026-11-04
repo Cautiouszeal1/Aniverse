@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { PageHeader, PanelSkeleton } from "@/components/dashboard/page-header";
 import { CharacterCard } from "@/components/studio/character-card";
 import { ButtonLink } from "@/components/ui/button";
-import { getProject, listCharacters, storyboardSummaries } from "@/lib/data";
+import { clipCounts, getProject, listCharacters, storyboardSummaries } from "@/lib/data";
 import { formatDuration } from "@/lib/storyboard/options";
 
 export default function ProjectPage({ params }: PageProps<"/dashboard/projects/[id]">) {
@@ -19,7 +19,8 @@ async function ProjectContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const project = await getProject(id);
   if (!project) notFound();
-  const [characters, summaries] = await Promise.all([listCharacters(id), storyboardSummaries()]);
+  const [characters, summaries, counts] = await Promise.all([listCharacters(id), storyboardSummaries(), clipCounts()]);
+  const clips = counts.get(id) ?? 0;
   const summary = summaries.get(id);
 
   return (
@@ -76,10 +77,16 @@ async function ProjectContent({ params }: { params: Promise<{ id: string }> }) {
           </p>
           <span className="mt-3 inline-block text-sm text-cyan-300">Open storyboard →</span>
         </Link>
-        <div className="rounded-2xl border border-dashed border-silver-300/15 p-5">
-          <h3 className="font-semibold text-silver-300">Animations</h3>
-          <p className="mt-1 text-sm text-silver-500">Arrives in Milestone 5.</p>
-        </div>
+        <Link
+          href={`/dashboard/projects/${id}/animate`}
+          className="panel block p-5 transition-colors hover:border-cyan-400/40"
+        >
+          <h3 className="font-semibold">Animations</h3>
+          <p className="mt-1 text-sm text-silver-400">
+            {clips ? `${clips} clip${clips === 1 ? "" : "s"}` : "Turn your scenes into animated clips."}
+          </p>
+          <span className="mt-3 inline-block text-sm text-cyan-300">Open animation workspace →</span>
+        </Link>
       </section>
     </div>
   );

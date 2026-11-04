@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { signedUrlsFor } from "@/server/images/storage";
+import { signedVideoUrls } from "@/server/video/storage";
 
 export type Project = {
   id: string;
@@ -260,5 +261,89 @@ export async function storyboardSummaries() {
       seconds: own.reduce((t, s) => t + Number(s.duration_seconds), 0),
     });
   }
+  return map;
+}
+
+// ---------------------------------------------------------------------
+// Animations
+// ---------------------------------------------------------------------
+
+export type Price = {
+  id: "motion-standard" | "motion-pro";
+  label: string;
+  description: string;
+  credits_per_clip: number;
+  max_seconds: number;
+  enabled: boolean;
+};
+
+export type Clip = {
+  id: string;
+  project_id: string;
+  scene_id: string | null;
+  version: number;
+  quality: string;
+  prompt: string;
+  duration_seconds: number;
+  aspect_ratio: "16:9" | "9:16";
+  is_demo: boolean;
+  video_path: string | null;
+  bytes: number | null;
+  created_at: string;
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+  charged: number;
+  refunded: number;
+  video_url?: string | null;
+  download_url?: string | null;
+};
+
+export async function listPrices() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ai_prices")
+    .select("id, label, description, credits_per_clip, max_seconds, enabled")
+    .order("sort_order");
+  if (error) throw new Error("Could not load prices");
+  return (data ?? []) as Price[];
+}
+
+export async function videoServicePaused() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("ai_service_status").select("paused").eq("service", "video").maybeSingle();
+  return Boolean(data?.paused);
+}
+
+export async function listClips(opts: { projectId?: string; limit?: number } = {}): Promise<Clip[]> {
+  const supabase = await createClient();
+  let q = supabase
+    .from("animation_clips")
+    .select(
+      "id, project_id, scene_id, version, quality, prompt, duration_seconds, aspect_ratio, is_demo, video_path, bytes, created_at, generation_jobs!inner(status, charged_credits, refunded_credits)",
+    )
+    .order("created_at", { ascending: false });
+  if (opts.projectId) q = q.eq("project_id", opts.projectId);
+  if (opts.limit) q = q.limit(opts.limit);
+  const { data, error } = await q;
+  if (error) throw new Error("Could not load animations");
+  const rows = (data ?? []).map((r) => {
+    const job = r.generation_jobs as unknown as { status: Clip["status"]; charged_credits: number; refunded_credits: number };
+    const { generation_jobs: _omit, ...rest } = r as typeof r & { generation_jobs: unknown };
+    void _omit;
+    return { ...(rest as Omit<Clip, "status" | "charged" | "refunded">), status: job.status, charged: job.charged_credits, refunded: job.refunded_credits };
+  });
+  const paths = rows.map((r) => r.video_path ?? "");
+  const [view, download] = await Promise.all([signedVideoUrls(supabase, paths), signedVideoUrls(supabase, paths, true)]);
+  return rows.map((r) => ({
+    ...r,
+    video_url: r.video_path ? view.get(r.video_path) ?? null : null,
+    download_url: r.video_path ? download.get(r.video_path) ?? null : null,
+  }));
+}
+
+export async function clipCounts() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("animation_clips").select("project_id");
+  const map = new Map<string, number>();
+  for (const r of data ?? []) map.set(r.project_id, (map.get(r.project_id) ?? 0) + 1);
   return map;
 }

@@ -2,13 +2,13 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Pay-safe generation. Every paid AI call goes through runPaidJob:
+ * Pay-safe generation. Every paid AI call goes through these steps:
  *
- *   1. start_paid_job   — refuses if the AI service is paused (nothing charged),
- *                         otherwise charges credits and creates the job atomically.
- *   2. work()           — the actual AI call.
- *   3. finish_paid_job  — on success.
- *      fail_paid_job    — on ANY error: full automatic refund, exactly once.
+ *   1. startPaidJob    — refuses if the AI service is paused (nothing charged),
+ *                        otherwise charges credits and creates the job atomically.
+ *   2. the AI call     — inline (runPaidJob) or in the background (animations).
+ *   3. completePaidJob — on success.
+ *      failPaidJob     — on ANY error: full automatic refund, exactly once.
  *
  * If the server dies between 1 and 3, refund_stuck_jobs (scheduled every
  * minute) refunds the job. So a user either gets a result or their credits back.
@@ -20,19 +20,21 @@ export type PaidJobInput = {
   kind: "character_image" | "scene_image" | "scene_video";
   service: "image" | "video";
   provider: string; // white-labelled id, e.g. "aniverse-video"
-  model: string; // white-labelled id, e.g. "av-video-1"
+  model: string; // white-labelled id, e.g. "av-motion-1"
   input: Record<string, unknown>;
   credits: number;
   requestKey: string; // from the form, so double-clicks never double-charge
 };
 
+export type PaidJobFailure = "insufficient_credits" | "service_unavailable" | "not_found" | "failed";
+
 export type PaidJobResult<T> =
   | { ok: true; jobId: string; value: T }
-  | { ok: false; code: "insufficient_credits" | "service_unavailable" | "not_found" | "failed"; jobId?: string; refunded?: number };
+  | { ok: false; code: PaidJobFailure; jobId?: string; refunded?: number };
 
-type Rpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+export type Rpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
 
-function defaultRpc(): Rpc {
+export function adminRpc(): Rpc {
   const admin = createAdminClient();
   return async (fn, args) => {
     const { data, error } = await admin.rpc(fn, args);
@@ -42,11 +44,10 @@ function defaultRpc(): Rpc {
 
 const KNOWN = ["insufficient_credits", "service_unavailable", "not_found"] as const;
 
-export async function runPaidJob<T>(
+export async function startPaidJob(
   job: PaidJobInput,
-  work: (jobId: string) => Promise<{ value: T; output: Record<string, unknown>; providerRequestId?: string }>,
-  rpc: Rpc = defaultRpc(),
-): Promise<PaidJobResult<T>> {
+  rpc: Rpc = adminRpc(),
+): Promise<{ ok: true; jobId: string } | { ok: false; code: PaidJobFailure }> {
   const started = await rpc("start_paid_job", {
     p_user_id: job.userId,
     p_project_id: job.projectId,
@@ -62,31 +63,53 @@ export async function runPaidJob<T>(
     const code = KNOWN.find((k) => started.error!.message.includes(k));
     return { ok: false, code: code ?? "failed" };
   }
-  const jobId = started.data as string;
+  return { ok: true, jobId: started.data as string };
+}
 
+export async function completePaidJob(
+  jobId: string,
+  output: Record<string, unknown>,
+  providerRequestId?: string,
+  rpc: Rpc = adminRpc(),
+) {
+  const done = await rpc("finish_paid_job", {
+    p_job_id: jobId,
+    p_output: output,
+    p_provider_request_id: providerRequestId ?? null,
+  });
+  if (done.error) throw new Error("could not record result");
+}
+
+/** Refund with retries; the scheduled safety net covers anything left. */
+export async function failPaidJob(jobId: string, reason: string, rpc: Rpc = adminRpc()): Promise<number | undefined> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const refund = await rpc("fail_paid_job", { p_job_id: jobId, p_error: reason }).catch(() => null);
+    if (refund && !refund.error) return refund.data as number;
+    await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+  }
+  return undefined;
+}
+
+export async function runPaidJob<T>(
+  job: PaidJobInput,
+  work: (jobId: string) => Promise<{ value: T; output: Record<string, unknown>; providerRequestId?: string }>,
+  rpc: Rpc = adminRpc(),
+): Promise<PaidJobResult<T>> {
+  const started = await startPaidJob(job, rpc);
+  if (!started.ok) return started;
+  const { jobId } = started;
   try {
     const result = await work(jobId);
-    const done = await rpc("finish_paid_job", {
-      p_job_id: jobId,
-      p_output: result.output,
-      p_provider_request_id: result.providerRequestId ?? null,
-    });
-    if (done.error) throw new Error("could not record result");
+    await completePaidJob(jobId, result.output, result.providerRequestId, rpc);
     return { ok: true, jobId, value: result.value };
   } catch (err) {
-    const reason = err instanceof Error ? err.message : "unknown error";
-    // Retry the refund a few times; the scheduled safety net covers the rest.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const refund = await rpc("fail_paid_job", { p_job_id: jobId, p_error: reason }).catch(() => null);
-      if (refund && !refund.error) return { ok: false, code: "failed", jobId, refunded: refund.data as number };
-      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-    }
-    return { ok: false, code: "failed", jobId };
+    const refunded = await failPaidJob(jobId, err instanceof Error ? err.message : "unknown error", rpc);
+    return refunded === undefined ? { ok: false, code: "failed", jobId } : { ok: false, code: "failed", jobId, refunded };
   }
 }
 
 /** Plain-language messages for the UI. No vendor names. */
-export function paidJobMessage(code: Exclude<PaidJobResult<unknown>, { ok: true }>["code"], refunded?: number) {
+export function paidJobMessage(code: PaidJobFailure, refunded?: number) {
   switch (code) {
     case "insufficient_credits":
       return "You don't have enough credits for this. Top up on the Credits page.";

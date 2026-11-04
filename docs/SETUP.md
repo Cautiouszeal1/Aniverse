@@ -111,3 +111,17 @@ balance is low).
    select public.set_ai_service_paused('video', true, 'maintenance');
    select public.set_ai_service_paused('video', false);
    ```
+
+## Animation, Media Library, Admin console
+1. **Database:** run `supabase/migrations/20261104000800_animation_media_admin.sql` in the SQL Editor
+   (after 000500, 000600 and 000700).
+2. **Video engine:** uses the same `POLLINATIONS_API_KEY` as images. Video uses real AI
+   balance, so keep the AI account funded. If it runs out, AniVerse pauses animation by
+   itself (nobody is charged) until you top up and press **Resume** in the Admin console.
+   - Optional: `VIDEO_PROVIDER=demo` shows labelled previews instead (no charge, no AI).
+   - Optional: `VIDEO_MODEL_STANDARD` / `VIDEO_MODEL_PRO` override the engine models.
+3. **Prices:** Admin console → Animation prices. Defaults: Standard 100 credits ($1),
+   Premium 750 credits ($15). Check what one clip costs in your AI dashboard first and set
+   prices at about double that.
+4. **Give test credits:** Admin console → Users → search your email → `+500`, reason "testing".
+5. **Check:** `/api/health` shows `"aiVideo":true`.

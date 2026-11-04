@@ -2,17 +2,21 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { signOut } from "@/app/(auth)/actions";
 import { ResetPasswordForm } from "@/components/auth/forms";
+import { DeletionRequestForm } from "@/components/dashboard/account-forms";
 import { ProfileForm } from "@/components/dashboard/forms";
 import { PageHeader, PanelSkeleton } from "@/components/dashboard/page-header";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/form";
 import { getCurrentUser } from "@/lib/auth";
+import { formatDate } from "@/lib/data";
+import { createClient } from "@/lib/supabase/server";
+import { cancelDeletion } from "./actions";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default function SettingsPage() {
   return (
     <div className="space-y-8">
-      <PageHeader title="Settings" description="Your profile, password and account." />
+      <PageHeader title="Settings" description="Your profile, password, data and account." />
       <Suspense fallback={<PanelSkeleton rows={3} />}>
         <SettingsContent />
       </Suspense>
@@ -22,6 +26,14 @@ export default function SettingsPage() {
 
 async function SettingsContent() {
   const user = await getCurrentUser();
+  const supabase = await createClient();
+  const { data: deletion } = await supabase
+    .from("account_deletion_requests")
+    .select("status, requested_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const pending = deletion?.status === "pending";
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section aria-labelledby="profile-title" className="panel p-6">
@@ -49,14 +61,35 @@ async function SettingsContent() {
         </form>
       </section>
 
-      <section aria-labelledby="danger-title" className="panel border-rose-400/20 p-6">
-        <h2 id="danger-title" className="text-lg font-semibold">Delete account</h2>
+      <section aria-labelledby="data-title" className="panel p-6">
+        <h2 id="data-title" className="text-lg font-semibold">Your data</h2>
         <p className="mt-1 text-sm text-silver-500">
-          Account deletion requests will be handled from here before the public launch.
+          Download everything AniVerse stores about you — projects, characters, storyboards, clips and credit history — as one file.
         </p>
-        <Button variant="secondary" className="mt-5" disabledReason="Account deletion requests arrive with the admin console (Milestone 6)">
-          Request deletion
-        </Button>
+        <a href="/api/account/export" className="mt-5 inline-flex h-11 items-center rounded-full border border-silver-300/20 px-5 text-sm text-silver-100 hover:border-cyan-400/50">
+          Download my data
+        </a>
+      </section>
+
+      <section aria-labelledby="danger-title" className="panel border-rose-400/20 p-6 lg:col-span-2">
+        <h2 id="danger-title" className="text-lg font-semibold">Delete account</h2>
+        {pending ? (
+          <>
+            <p className="mt-1 text-sm text-amber-100">
+              Deletion requested on {formatDate(deletion!.requested_at)}. Your account and all its files will be deleted within 30 days.
+            </p>
+            <form action={cancelDeletion} className="mt-5">
+              <SubmitButton pendingText="Cancelling…" variant="secondary">Keep my account</SubmitButton>
+            </form>
+          </>
+        ) : (
+          <>
+            <p className="mt-1 text-sm text-silver-500">
+              Permanently removes your account, projects, characters, clips and files within 30 days. Download your data first if you want a copy.
+            </p>
+            <DeletionRequestForm />
+          </>
+        )}
       </section>
     </div>
   );

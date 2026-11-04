@@ -16,11 +16,11 @@ const NAV: NavItem[] = [
   { label: "My Projects", href: "/dashboard/projects", icon: "M3 7h7l2 2h9v10H3z" },
   { label: "Character Studio", href: "/dashboard/studio", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5" },
   { label: "Storyboards", href: "/dashboard/storyboards", icon: "M3 5h7v6H3zm11 0h7v6h-7zM3 14h7v6H3zm11 0h7v6h-7z" },
-  { label: "Animations", soon: "Milestone 5", icon: "M3 5h18v14H3zm7 4v6l5-3z" },
-  { label: "Media Library", soon: "Milestone 5", icon: "M4 5h16v14H4zm0 10 4.5-4 4 3.5 3-2.5L20 15" },
+  { label: "Animations", href: "/dashboard/animations", icon: "M3 5h18v14H3zm7 4v6l5-3z" },
+  { label: "Media Library", href: "/dashboard/library", icon: "M4 5h16v14H4zm0 10 4.5-4 4 3.5 3-2.5L20 15" },
   { label: "Credits & Billing", href: "/dashboard/credits", icon: "M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2 2.6 5 3.2 5 1.4 5 3.3-2.2 3-5 3-5-1.1-5-3" },
   { label: "Settings", href: "/dashboard/settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm8-3 2-1.5-2-3.5-2.4.6a7 7 0 0 0-1.6-.9L15.5 4h-4l-.5 2.7a7 7 0 0 0-1.6.9L7 7 5 10.5 7 12l-2 1.5L7 17l2.4-.6c.5.4 1 .7 1.6.9l.5 2.7h4l.5-2.7c.6-.2 1.1-.5 1.6-.9L20 17l2-3.5z" },
-  { label: "Help", href: "/#faq", icon: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm-2.5-11.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14m0 3h.01" },
+  { label: "Help", href: "/dashboard/help", icon: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm-2.5-11.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14m0 3h.01" },
 ];
 
 function ActiveNavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -69,6 +69,7 @@ function NavItems({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
           pathname.endsWith("/studio");
         const inStoryboard =
           pathname.startsWith("/dashboard/storyboards") || pathname.endsWith("/storyboard");
+        const inAnimate = pathname.startsWith("/dashboard/animations") || pathname.endsWith("/animate");
         const active =
           item.href === "/dashboard"
             ? pathname === "/dashboard"
@@ -76,9 +77,11 @@ function NavItems({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
               ? inStudio
               : item.href === "/dashboard/storyboards"
                 ? inStoryboard
-                : item.href === "/dashboard/projects"
-                  ? pathname.startsWith(item.href) && !inStudio && !inStoryboard
-                  : pathname.startsWith(item.href);
+                : item.href === "/dashboard/animations"
+                  ? inAnimate
+                  : item.href === "/dashboard/projects"
+                    ? pathname.startsWith(item.href) && !inStudio && !inStoryboard && !inAnimate
+                    : pathname.startsWith(item.href);
         return (
           <li key={item.label}>
             <Link

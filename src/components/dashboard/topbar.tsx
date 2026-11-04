@@ -42,8 +42,8 @@ async function UserMenu() {
           Settings
         </Link>
         {isAdmin ? (
-          <Link href="/dashboard/admin/payments" className="block rounded-xl px-3 py-2 text-sm text-amber-200 hover:bg-white/[0.05]">
-            Admin · Payments
+          <Link href="/dashboard/admin" className="block rounded-xl px-3 py-2 text-sm text-amber-200 hover:bg-white/[0.05]">
+            Admin console
           </Link>
         ) : null}
         <form action={signOut}>

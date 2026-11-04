@@ -6,6 +6,7 @@ import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 const FIXTURE = readFileSync(new URL("./fixture.png", import.meta.url));
+const FIXTURE_MP4 = readFileSync(new URL("./fixture.mp4", import.meta.url));
 const storage = new Map(); // "bucket/path" -> {bytes, type}
 
 const USER_ID = "11111111-1111-1111-1111-111111111111";
@@ -31,7 +32,64 @@ const db = {
   crypto_payments: [],
   crypto_scan_state: [],
   app_admins: [{ user_id: USER_ID }],
+  animation_clips: [],
+  ai_prices: [
+    { id: "motion-standard", label: "Standard", description: "Fast, good-looking motion. Starts from your character's picture.", credits_per_clip: 100, max_seconds: 5, enabled: true, sort_order: 1 },
+    { id: "motion-pro", label: "Premium", description: "Cinematic quality with richer motion and lighting.", credits_per_clip: 750, max_seconds: 8, enabled: true, sort_order: 2 },
+  ],
+  ai_service_status: [
+    { service: "image", paused: false, auto_paused: false, reason: null, balance_usd: null, min_balance_usd: 5, updated_at: now() },
+    { service: "video", paused: false, auto_paused: false, reason: null, balance_usd: null, min_balance_usd: 5, updated_at: now() },
+  ],
+  content_reports: [],
+  account_deletion_requests: [],
+  audit_events: [],
 };
+const balanceOf = (uid) => db.credit_ledger.filter((r) => (r.user_id ?? USER_ID) === uid).reduce((s, r) => s + r.delta, 0);
+function failJob(id, err) {
+  const j = db.generation_jobs.find((x) => x.id === id);
+  if (!j || j.status === "completed") return 0;
+  const amt = j.charged_credits - (j.refunded_credits || 0);
+  if (amt > 0 && !db.credit_ledger.some((r) => r.key === "refund:" + id)) db.credit_ledger.push({ id: db.credit_ledger.length + 1, user_id: j.owner_id, delta: amt, reason: "refund", note: err, key: "refund:" + id, created_at: now() });
+  Object.assign(j, { status: "failed", error: err, refunded_credits: j.charged_credits, completed_at: now() });
+  return Math.max(amt, 0);
+}
+function paidRpc(name, a) {
+  if (name === "start_paid_job") {
+    const ex = db.generation_jobs.find((j) => j.idempotency_key === a.p_key);
+    if (ex) return [200, ex.id];
+    if (db.ai_service_status.find((s) => s.service === a.p_service)?.paused) return [400, { message: "service_unavailable" }];
+    if (balanceOf(a.p_user_id) < a.p_credits) return [400, { message: "insufficient_credits" }];
+    const id = randomUUID();
+    db.credit_ledger.push({ id: db.credit_ledger.length + 1, user_id: a.p_user_id, delta: -a.p_credits, reason: "generation", note: null, created_at: now() });
+    db.generation_jobs.push({ id, owner_id: a.p_user_id, project_id: a.p_project_id, kind: a.p_kind, status: "processing", provider: a.p_provider, model: a.p_model, is_demo: false, input: a.p_input, output: null, estimated_credits: a.p_credits, charged_credits: a.p_credits, refunded_credits: 0, idempotency_key: a.p_key, error: null, created_at: now(), updated_at: now() });
+    return [200, id];
+  }
+  if (name === "finish_paid_job") { const j = db.generation_jobs.find((x) => x.id === a.p_job_id); if (j && j.status === "processing") Object.assign(j, { status: "completed", output: a.p_output, completed_at: now() }); return [200, true]; }
+  if (name === "fail_paid_job") return [200, failJob(a.p_job_id, a.p_error)];
+  if (name === "create_animation_clip") {
+    const ex = db.animation_clips.find((c) => c.job_id === a.p_job); if (ex) return [200, ex.id];
+    const version = db.animation_clips.filter((c) => c.scene_id === a.p_scene).reduce((m, c) => Math.max(m, c.version), 0) + 1;
+    const id = randomUUID();
+    db.animation_clips.push({ id, owner_id: a.p_owner, project_id: a.p_project, scene_id: a.p_scene, job_id: a.p_job, version, quality: a.p_quality, prompt: a.p_prompt, duration_seconds: a.p_duration, aspect_ratio: a.p_aspect, is_demo: a.p_is_demo, video_path: null, bytes: null, created_at: now() });
+    return [200, id];
+  }
+  if (name === "attach_clip_video") { const c = db.animation_clips.find((x) => x.job_id === a.p_job); if (c) Object.assign(c, { video_path: a.p_path, bytes: a.p_bytes }); return [200, null]; }
+  if (name === "report_ai_balance") { const s = db.ai_service_status.find((x) => x.service === a.p_service); const low = a.p_balance_usd < s.min_balance_usd; Object.assign(s, { balance_usd: a.p_balance_usd, paused: low, auto_paused: low, reason: low ? "low_balance" : null }); return [200, !low]; }
+  if (name === "set_ai_service_paused") { const s = db.ai_service_status.find((x) => x.service === a.p_service); Object.assign(s, { paused: a.p_paused, auto_paused: false, reason: a.p_paused ? "manual" : null, updated_at: now() }); return [200, null]; }
+  if (name === "admin_usage_report") {
+    const kinds = [...new Set(db.generation_jobs.map((j) => j.kind))];
+    return [200, kinds.map((k) => { const js = db.generation_jobs.filter((j) => j.kind === k); return { kind: k, jobs: js.length, completed: js.filter((j) => j.status === "completed").length, failed: js.filter((j) => j.status === "failed").length, credits_charged: js.reduce((t, j) => t + (j.charged_credits || 0), 0), credits_refunded: js.reduce((t, j) => t + (j.refunded_credits || 0), 0) }; })];
+  }
+  if (name === "admin_find_users") return [200, [{ user_id: USER_ID, email: user.email, display_name: "Ada Obi", created_at: "2026-11-01T10:00:00Z", balance: balanceOf(USER_ID), projects: db.projects.length, jobs: db.generation_jobs.length }]];
+  if (name === "admin_adjust_credits") {
+    if (balanceOf(a.p_user_id) + a.p_delta < 0) return [400, { message: "would_go_negative" }];
+    db.credit_ledger.push({ id: db.credit_ledger.length + 1, user_id: a.p_user_id, delta: a.p_delta, reason: "adjustment", note: a.p_note, created_at: now() });
+    db.audit_events.push({ id: db.audit_events.length + 1, action: "credits.adjust", target_id: a.p_user_id, details: { delta: a.p_delta, note: a.p_note }, created_at: now() });
+    return [200, balanceOf(a.p_user_id)];
+  }
+  return null;
+}
 
 // ---- Stand-in Base chain (test only) ----
 const chain = { block: 1000, logs: [], blockTimes: new Map() };
@@ -92,7 +150,9 @@ function applyFilters(rows, params) {
 }
 
 const defaults = {
-  generation_jobs: () => ({ id: randomUUID(), status: "queued", created_at: now(), updated_at: now() }),
+  generation_jobs: () => ({ id: randomUUID(), status: "queued", refunded_credits: 0, created_at: now(), updated_at: now() }),
+  content_reports: () => ({ id: randomUUID(), status: "open", admin_note: null, created_at: now(), updated_at: now() }),
+  account_deletion_requests: () => ({ status: "pending", requested_at: now(), updated_at: now() }),
   characters: () => ({ id: randomUUID(), created_at: now(), updated_at: now() }),
   character_versions: () => ({ id: randomUUID(), created_at: now() }),
   projects: () => ({ id: randomUUID(), status: "active", created_at: now(), updated_at: now() }),
@@ -126,6 +186,19 @@ http.createServer(async (req, res) => {
   if (p === "/__hits") return send(200, { hits: globalThis.__imgHits || 0, keyed: globalThis.__keyed || 0, stored: storage.size });
 
   // Stand-in for gen.pollinations.ai keyed image API (test only).
+  if (p.startsWith("/image/") && ["seedance", "veo"].includes(url.searchParams.get("model"))) {
+    if (req.headers.authorization !== "Bearer sk_test_key") return send(401, { error: "bad key" });
+    globalThis.__video = (globalThis.__video || 0) + 1;
+    globalThis.__lastVideo = Object.fromEntries(url.searchParams);
+    if (globalThis.__videoMode === "fail") { await new Promise((r) => setTimeout(r, 500)); return send(500, { error: "engine down" }); }
+    if (globalThis.__videoMode === "broke") return send(402, { error: "insufficient pollen" });
+    await new Promise((r) => setTimeout(r, 2500));
+    res.writeHead(200, { "content-type": "video/mp4" });
+    return res.end(FIXTURE_MP4);
+  }
+  if (p === "/__video_mode") { globalThis.__videoMode = url.searchParams.get("m"); return send(200, { ok: true }); }
+  if (p === "/__db") return send(200, { jobs: db.generation_jobs, clips: db.animation_clips, ledger: db.credit_ledger, status: db.ai_service_status, reports: db.content_reports, deletions: db.account_deletion_requests });
+  if (p === "/__video") return send(200, { calls: globalThis.__video || 0, last: globalThis.__lastVideo || null });
   if (p.startsWith("/image/")) {
     if (req.headers.authorization !== "Bearer sk_test_key") return send(401, { error: "bad key" });
     globalThis.__keyed = (globalThis.__keyed || 0) + 1;
@@ -156,7 +229,7 @@ http.createServer(async (req, res) => {
       return res.end(obj.bytes);
     }
     if (req.method === "POST") {
-      if (storage.has(key)) return send(400, { statusCode: "409", error: "Duplicate", message: "The resource already exists" });
+      if (storage.has(key) && req.headers["x-upsert"] !== "true") return send(400, { statusCode: "409", error: "Duplicate", message: "The resource already exists" });
       storage.set(key, { bytes: raw, type: req.headers["content-type"] || "application/octet-stream" });
       return send(200, { Key: key, Id: randomUUID() });
     }
@@ -212,6 +285,8 @@ http.createServer(async (req, res) => {
     rev.scenes.forEach((sc, i) => db.storyboard_scenes.push({ ...defaults.storyboard_scenes(), ...sc, storyboard_id: rev.storyboard_id, owner_id: USER_ID, position: i }));
     return send(200, rev.scenes.length);
   }
+  const rp = p.match(/^\/rest\/v1\/rpc\/(\w+)$/);
+  if (rp) { const r = paidRpc(rp[1], JSON.parse(body || "{}")); if (r) return send(r[0], r[1]); }
   const m = p.match(/^\/rest\/v1\/(\w+)$/);
   if (!m || !db[m[1]]) return send(404, {});
   const table = m[1];
@@ -231,7 +306,12 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { "content-range": `0-${Math.max(rows.length - 1, 0)}/${rows.length}` });
     return res.end(req.method === "HEAD" ? "" : JSON.stringify(rows));
   }
-  if (req.method === "GET") return reply(applyFilters(db[table], url.searchParams));
+  if (req.method === "GET") {
+    let rows = applyFilters(db[table], url.searchParams);
+    if (table === "animation_clips") rows = rows.map((c) => ({ ...c, generation_jobs: (({ status, charged_credits, refunded_credits }) => ({ status, charged_credits, refunded_credits }))(db.generation_jobs.find((j) => j.id === c.job_id) ?? {}) }));
+    if (table === "storyboard_scenes") rows = rows.map((sc) => ({ ...sc, storyboards: { project_id: db.storyboards.find((b) => b.id === sc.storyboard_id)?.project_id } }));
+    return reply(rows);
+  }
   if (req.method === "POST") {
     const items = [].concat(JSON.parse(body || "[]"));
     const created = [];

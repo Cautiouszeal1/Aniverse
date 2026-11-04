@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { CreateProjectForm, OnboardingForm } from "@/components/dashboard/forms";
 import { PageHeader, PanelSkeleton } from "@/components/dashboard/page-header";
 import { getCreditBalance, getCurrentUser } from "@/lib/auth";
-import { countProjects, formatDate, listProjects } from "@/lib/data";
+import { clipCounts, countProjects, formatDate, listProjects } from "@/lib/data";
 
 export default function OverviewPage() {
   return (
@@ -14,12 +14,14 @@ export default function OverviewPage() {
 }
 
 async function Overview() {
-  const [user, recent, activeCount, balance] = await Promise.all([
+  const [user, recent, activeCount, balance, counts] = await Promise.all([
     getCurrentUser(),
     listProjects({ status: "active", limit: 5 }),
     countProjects(),
     getCreditBalance(),
+    clipCounts(),
   ]);
+  const clipTotal = [...counts.values()].reduce((a, b) => a + b, 0);
   const name = user.displayName?.split(" ")[0];
 
   return (
@@ -34,7 +36,7 @@ async function Overview() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Active projects" value={activeCount.toLocaleString("en-US")} href="/dashboard/projects" />
         <Stat label="Credit balance" value={balance.toLocaleString("en-US")} href="/dashboard/credits" />
-        <Stat label="Animations generated" value="0" note="Animation arrives in Milestone 5" />
+        <Stat label="Animation clips" value={clipTotal.toLocaleString("en-US")} href="/dashboard/animations" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">

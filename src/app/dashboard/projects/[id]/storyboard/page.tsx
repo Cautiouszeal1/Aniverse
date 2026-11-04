@@ -69,9 +69,12 @@ async function Storyboard({ params }: { params: Promise<{ id: string }> }) {
           </ol>
           <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
             {board ? <VersionsPanel storyboardId={board.id} revisions={revisions} /> : null}
-            <div className="rounded-2xl border border-dashed border-silver-300/15 p-5">
-              <h2 className="font-semibold text-silver-300">Animate scenes</h2>
-              <p className="mt-1 text-sm text-silver-500">Turning scenes into animation arrives in Milestone 5.</p>
+            <div className="rounded-2xl border border-silver-300/15 p-5">
+              <h2 className="font-semibold text-silver-100">Animate scenes</h2>
+              <p className="mt-1 text-sm text-silver-500">Turn each scene into an animated clip with AniVerse AI.</p>
+              <Link href={`/dashboard/projects/${id}/animate`} className="mt-3 inline-block text-sm text-cyan-300">
+                Open animation workspace →
+              </Link>
             </div>
           </div>
         </div>
